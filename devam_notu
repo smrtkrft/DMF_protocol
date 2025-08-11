@@ -1,0 +1,16 @@
+olmasi gereken modüller :
+
+esp12s kullanilabilinir
+relais olmali ki fiziki bir isde yapabilsin (ama get url tetikleme bel kemigi)
+pil olabilir (tasinabilir olmasi icin )
+-ek opsiyon olarak 230ACV den 5DCV gecisi ile sonradan 5DCV den 3.3DCV ile calistirma
+- yada direkt usb-c ile 5den 3.3DCV ile calistirma (pilli kullanimda tercih bu olabilir , kablolu yada kablosuz kullanim)
+pcb tasarimi (duruma göre AC versiyonu ve DC pilli , DC pilsiz versiyonu)
+-buton ile erteleme (tarayiicidan da ertelenebilir olmali)
+olmasi gereken calisma prensibi:
+
+web tarayicisindan kisisel ayarlamalar (arayüz tasarimi)
+Erken erteleme , son süre ayarlamasi ve erken uyari sistemi (örnek senaryo 10 gün ise 7.8.9. gün uyari ile ertelemeyi hatirlatmali)
+-Hash sifreleme ile mesaj güvenligi (vasiyet yada not yazisini txt yada url yada baska bir dosya yazi icerik veya kullanici platform giris sifresi olabilir)
+ne zaman baslanacak ?
+-SynDimm öncelikli , FlexKey bitince yada ShifterKey ile es zamanli olabilir.
