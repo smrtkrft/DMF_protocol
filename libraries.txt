@@ -1,0 +1,29 @@
+# Arduino IDE Library Dependencies for DMF Project
+
+# Core ESP32 Libraries (automatically included with ESP32 board package)
+WiFi
+WebServer
+ESPmDNS
+SPIFFS
+WiFiClientSecure
+HTTPClient
+Preferences
+esp_wifi
+esp_random
+mbedtls
+
+# External Libraries (install via Library Manager)
+ArduinoJson@6.21.0
+
+# Board Package Required
+ESP32 by Espressif Systems@2.0.11
+
+# Optional Libraries for Extended Features
+ESP32Servo@0.13.0      # If you need servo control
+OneWire@2.3.7          # If you add temperature sensors
+DallasTemperature@3.11.0   # Temperature sensor support
+NTPClient@3.2.1        # Network time synchronization
+
+# Installation Commands for Arduino CLI (optional)
+# arduino-cli core install esp32:esp32
+# arduino-cli lib install ArduinoJson@6.21.0
