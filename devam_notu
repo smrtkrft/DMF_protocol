@@ -27,3 +27,4 @@ röle eklenecek( sistemin sonrakibversiyonunda)
 kisisel kullanimdan cikartilip genel kullanima uygun hale getirilmeli.
 genel kullanim icin tarayici arayüzü gelistirilmeli
 ssid 1 ve rez2 ayarlanmali, özel durumlar icin güvensiz ama acık ağ bağlantisi olmali. acik ag sadece ssidler gecersizse olmali
+proton mail api disinda ek mail protokolleri yada sifreli iletim saglanmali
