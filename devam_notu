@@ -10,7 +10,7 @@ internete erisim koptugunda wifi aglari kapsamdan ciktiginda (güvensiz) sifresi
 // güvensiz aglarda wifi baglansa bile internet erisimi yoksa baska bir sifresiz aga atlanacak sekilde tasarlandi.
 --> güvensiz ag secenegi test edilmedi.
 ** hizli test icin saat ve gün sayacina dakika sayaci eklendi , testler bitince gereksiz oldugu icin kaldirilacak.
-
+ek aciklama INFO sayfasi eklendi. smartkraft.ch/DMF urlsi var ama url henüz web sitesine girilmedi. bu info ile cihaz kullanim talimatlari var.
 
 
 olmasi gereken modüller :
