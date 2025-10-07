@@ -6,6 +6,9 @@ proton mail entegrasyonu %100 durumda testleri tamamlandi.
 --> Gmail entegrasyonu var ama test edilmedi.
 1. ssid statik ip atamali olarak sorunsuz calisiyor, ap mod on/off sorunsuz.
 --> 2. yedek ssid alani eklendi statip ip atanabiliyor ama tam testleri yapilmadi.
+internete erisim koptugunda wifi aglari kapsamdan ciktiginda (güvensiz) sifresiz aglara baglanma özelligi eklendi
+// güvensiz aglarda wifi baglansa bile internet erisimi yoksa baska bir sifresiz aga atlanacak sekilde tasarlandi.
+--> güvensiz ag secenegi test edilmedi.
 
 
 
