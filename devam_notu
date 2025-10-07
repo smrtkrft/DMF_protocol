@@ -14,6 +14,10 @@ internete erisim koptugunda wifi aglari kapsamdan ciktiginda (güvensiz) sifresi
 ** hizli test icin saat ve gün sayacina dakika sayaci eklendi , testler bitince gereksiz oldugu icin kaldirilacak.
 ek aciklama INFO sayfasi eklendi. smartkraft.ch/DMF urlsi var ama url henüz web sitesine girilmedi. bu info ile cihaz kullanim talimatlari var.
 
+ÖNEMLI HATA , MAIL EKLERINDEKI DOSYALAR MAIL ICERISINDE GÖNDERILMEME DURUMU VAR , DOSYA FORMATI JPG JPEG GIBI UZANTILARDA PROBLEM VAR.
+EK OLARAK 180KB DOSYANIN 12KB OLARAK EKSIK HALI GÖNDERILIYOR. ERKEN UYARIDA PDF GÖNDERMEDE , DMF DE JPG GÖNDERMEDE SORUN YASANDI.
+
+GÜVENLIK ACIKLARI TARANACAK VE KADEMELI OLARAK  KRITIK ACIKLAR KAPATILACAK
 _______________________________________
 olmasi gereken modüller :
 
