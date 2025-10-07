@@ -3,6 +3,8 @@ nereyedse tamamlandi.
 aktif olarak bilinen güvenlik aciklari var , ag ve veri güvenligi eksiklikleri var.
 sistem mantiksal bütünlüge eristi. kodlar sorunsuz calisiyor.
 proton mail entegrasyonu %100 durumda testleri tamamlandi.
+--> Gmail entegrasyonu var ama test edilmedi.
+
 
 
 olmasi gereken modüller :
