@@ -9,6 +9,7 @@ proton mail entegrasyonu %100 durumda testleri tamamlandi.
 internete erisim koptugunda wifi aglari kapsamdan ciktiginda (güvensiz) sifresiz aglara baglanma özelligi eklendi
 // güvensiz aglarda wifi baglansa bile internet erisimi yoksa baska bir sifresiz aga atlanacak sekilde tasarlandi.
 --> güvensiz ag secenegi test edilmedi.
+** hizli test icin saat ve gün sayacina dakika sayaci eklendi , testler bitince gereksiz oldugu icin kaldirilacak.
 
 
 
