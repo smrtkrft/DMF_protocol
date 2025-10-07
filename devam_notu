@@ -4,6 +4,8 @@ aktif olarak bilinen güvenlik aciklari var , ag ve veri güvenligi eksiklikleri
 sistem mantiksal bütünlüge eristi. kodlar sorunsuz calisiyor.
 proton mail entegrasyonu %100 durumda testleri tamamlandi.
 --> Gmail entegrasyonu var ama test edilmedi.
+1. ssid statik ip atamali olarak sorunsuz calisiyor, ap mod on/off sorunsuz.
+
 
 
 
