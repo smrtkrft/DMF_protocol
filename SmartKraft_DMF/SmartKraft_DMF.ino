@@ -31,6 +31,8 @@ bool relayLatched = false;
 unsigned long lastButtonChange = 0;
 bool lastButtonState = true;
 unsigned long lastPersist = 0;
+unsigned long finalMailSentTime = 0; // Final mail gönderilme zamanı
+bool finalMailSent = false; // Final mail gönderildi mi?
 
 String deviceId;
 
@@ -58,6 +60,11 @@ void resetTimerFromButton() {
     scheduler.reset();
     scheduler.start();
     scheduler.persist();
+    
+    // Reboot flag'ini sıfırla
+    finalMailSent = false;
+    finalMailSentTime = 0;
+    
     Serial.println(F("[Timer] Fiziksel/sanal buton ile geri sayım yeniden başlatıldı"));
 }
 
@@ -97,6 +104,13 @@ void processAlarms() {
             Serial.printf("[Mail] Final maili gönderilemedi: %s\n", error.c_str());
         } else {
             Serial.println(F("[Mail] Final maili gönderildi (tüm alıcılara ayrı ayrı)"));
+            
+            // ⚠️ YENİ: Final mail başarıyla gönderildikten sonra 60 saniye bekle ve reboot
+            if (!finalMailSent) {
+                finalMailSent = true;
+                finalMailSentTime = millis();
+                Serial.println(F("[Reboot] Final mail gönderildi - 60 saniye sonra cihaz yeniden başlatılacak"));
+            }
         }
         scheduler.acknowledgeFinal();
         scheduler.persist();
@@ -180,6 +194,32 @@ void loop() {
     handleButton();
     processAlarms();
     testInterface.processSerial();
+
+    // ⚠️ YENİ: Final mail gönderildikten 60 saniye sonra reboot
+    if (finalMailSent) {
+        unsigned long elapsed = millis() - finalMailSentTime;
+        unsigned long remaining = 60000 - elapsed;
+        
+        // Her 10 saniyede bir geri sayım mesajı bas
+        static unsigned long lastCountdownMsg = 0;
+        if (millis() - lastCountdownMsg >= 10000) {
+            if (remaining > 1000) {
+                Serial.printf("[Reboot] Yeniden başlatmaya %lu saniye kaldı...\n", remaining / 1000);
+                lastCountdownMsg = millis();
+            }
+        }
+        
+        // 60 saniye doldu - reboot!
+        if (elapsed >= 60000) {
+            Serial.println(F(""));
+            Serial.println(F("========================================"));
+            Serial.println(F("[Reboot] 60 saniye doldu!"));
+            Serial.println(F("[Reboot] Cihaz yeniden başlatılıyor..."));
+            Serial.println(F("========================================"));
+            delay(1000); // Serial mesajının gönderilmesi için bekle
+            ESP.restart();
+        }
+    }
 
     if (millis() - lastPersist > STATUS_PERSIST_INTERVAL_MS) {
         scheduler.persist();

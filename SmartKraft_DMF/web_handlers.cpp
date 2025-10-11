@@ -364,7 +364,7 @@ Timer completed. Urgent action required.</textarea>
 <span data-i18n="info.step2Text">• Enter SMTP server information (ProtonMail recommended)
 • Add email recipients (maximum 10)
 • Customize Warning and Final email content
-• Upload optional file attachments (maximum 5 files, 2MB limit)</span>
+• Upload optional file attachments (maximum 5 files, 500KB limit per file)</span>
 
 <strong data-i18n="info.step3Title">3. Connection Settings</strong>
 <span data-i18n="info.step3Text">• Define your primary and backup WiFi networks
@@ -1220,7 +1220,7 @@ Timer completed. Urgent action required.</textarea>
 
 namespace {
 constexpr size_t JSON_CAPACITY = 4096;
-constexpr size_t MAX_UPLOAD_SIZE = 2 * 1024 * 1024; // 2 MB
+constexpr size_t MAX_UPLOAD_SIZE = 512000; // 500 KB (base64 sonrası ~660KB olur)
 
 struct UploadContext {
     File file;

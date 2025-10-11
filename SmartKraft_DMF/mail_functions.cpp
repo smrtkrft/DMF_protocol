@@ -806,9 +806,74 @@ bool MailAgent::smtpSendMail(WiFiClientSecure &client, const String &subject, co
         return false;
     }
     
-    // MIME mesajı oluştur ve gönder
-    String mime = buildMimeMessage(subject, body, includeAttachments);
-    client.print(mime);
+    // ⚠️ YENİ: STREAMING MIME MESSAGE (RAM tasarrufu için)
+    // String yerine direkt WiFiClientSecure'a yazıyoruz
+    String boundary = "----=_SKDMF_" + String(random(100000, 999999));
+    
+    // MIME Headers
+    client.print("From: " + settings.username + "\r\n");
+    client.print("To: ");
+    for (uint8_t i = 0; i < settings.recipientCount; ++i) {
+        if (i > 0) client.print(", ");
+        client.print(settings.recipients[i]);
+    }
+    client.print("\r\n");
+    client.print("Subject: " + subject + "\r\n");
+    client.print("MIME-Version: 1.0\r\n");
+    client.print("Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n");
+    client.print("\r\n");
+    
+    // Body
+    client.print("--" + boundary + "\r\n");
+    client.print("Content-Type: text/plain; charset=UTF-8\r\n");
+    client.print("Content-Transfer-Encoding: 8bit\r\n\r\n");
+    client.print(body);
+    client.print("\r\n");
+    
+    // Attachments (streaming - RAM efficient)
+    if (includeAttachments && settings.attachmentCount > 0) {
+        Serial.printf("[SMTP Stream] %d attachment kontrol ediliyor\n", settings.attachmentCount);
+        uint8_t addedCount = 0;
+        
+        for (uint8_t i = 0; i < settings.attachmentCount; ++i) {
+            const auto &meta = settings.attachments[i];
+            
+            // Warning/Final kontrolü
+            if (includeAttachments && !meta.forWarning && !meta.forFinal) {
+                Serial.printf("[SMTP Stream] Attachment %d ATLANDI (forWarning=false && forFinal=false)\n", i);
+                continue;
+            }
+            
+            // Dosya varlık kontrolü
+            if (!LittleFS.exists(meta.storedPath)) {
+                Serial.printf("[SMTP Stream] Attachment %d ATLANDI (dosya yok: %s)\n", i, meta.storedPath);
+                continue;
+            }
+            
+            // Dosya boyutu kontrolü (500KB limit)
+            File testFile = LittleFS.open(meta.storedPath, "r");
+            if (!testFile) {
+                Serial.printf("[SMTP Stream] Attachment %d ATLANDI (açılamadı)\n", i);
+                continue;
+            }
+            size_t fileSize = testFile.size();
+            testFile.close();
+            
+            if (fileSize > 512000) { // 500KB limit
+                Serial.printf("[SMTP Stream] Attachment %d ATLANDI (çok büyük: %d bytes > 500KB)\n", i, fileSize);
+                continue;
+            }
+            
+            // Stream et (RAM'de biriktirmeden direkt gönder)
+            smtpStreamAttachment(client, boundary, meta);
+            addedCount++;
+        }
+        
+        Serial.printf("[SMTP Stream] TOPLAM: %d/%d attachment gönderildi\n", addedCount, settings.attachmentCount);
+    }
+    
+    // MIME sonlandırma
+    client.print("--" + boundary + "--\r\n");
     client.print("\r\n.\r\n");
     
     response = smtpReadLine(client);
@@ -819,7 +884,7 @@ bool MailAgent::smtpSendMail(WiFiClientSecure &client, const String &subject, co
         return false;
     }
     
-    Serial.println(F("[SMTP] Mail başarıyla gönderildi"));
+    Serial.println(F("[SMTP] Mail başarıyla gönderildi (streaming)"));
     return true;
 }
 
@@ -942,66 +1007,64 @@ bool MailAgent::sendEmailToSelf(const String &subject, const String &body, bool 
         return false;
     }
     
-    // MIME mesajı oluştur - sadece tek alıcı
+    // ⚠️ YENİ: STREAMING MIME (RAM tasarrufu için)
     String boundary = "----=_SKDMF_TEST_" + String(random(100000, 999999));
     
-    String mime = "From: " + settings.username + "\r\n";
-    mime += "To: " + settings.username + "\r\n";
-    mime += "Subject: " + subject + "\r\n";
-    mime += "MIME-Version: 1.0\r\n";
-    mime += "Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n";
-    mime += "\r\n";
+    // MIME Headers (streaming)
+    client.print("From: " + settings.username + "\r\n");
+    client.print("To: " + settings.username + "\r\n");
+    client.print("Subject: " + subject + "\r\n");
+    client.print("MIME-Version: 1.0\r\n");
+    client.print("Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n");
+    client.print("\r\n");
     
     // Body
-    mime += "--" + boundary + "\r\n";
-    mime += "Content-Type: text/plain; charset=UTF-8\r\n";
-    mime += "Content-Transfer-Encoding: 8bit\r\n\r\n";
-    mime += body + "\r\n";
+    client.print("--" + boundary + "\r\n");
+    client.print("Content-Type: text/plain; charset=UTF-8\r\n");
+    client.print("Content-Transfer-Encoding: 8bit\r\n\r\n");
+    client.print(body);
+    client.print("\r\n");
     
-    // Attachments (eğer varsa)
-    Serial.printf("[Test Self] Attachment kontrol - includeWarningAttachments=%d, attachmentCount=%d\n", includeWarningAttachments, settings.attachmentCount);
-    if (includeWarningAttachments) {
+    // Attachments (streaming - warning için)
+    if (includeWarningAttachments && settings.attachmentCount > 0) {
+        Serial.printf("[Test Self] %d attachment kontrol ediliyor\n", settings.attachmentCount);
         uint8_t addedCount = 0;
+        
         for (uint8_t i = 0; i < settings.attachmentCount; ++i) {
-            Serial.printf("[Test Self] Attachment %d: forWarning=%d, path=%s\n", i, settings.attachments[i].forWarning, settings.attachments[i].storedPath);
-            if (!settings.attachments[i].forWarning) {
+            const auto &meta = settings.attachments[i];
+            
+            if (!meta.forWarning) {
                 Serial.printf("[Test Self] Attachment %d ATLANDI (forWarning=false)\n", i);
                 continue;
             }
             
-            File f = LittleFS.open(settings.attachments[i].storedPath, "r");
-            if (!f) {
-                Serial.printf("[Test Self] Attachment %d ATLANDI (dosya açılamadı: %s)\n", i, settings.attachments[i].storedPath);
+            if (!LittleFS.exists(meta.storedPath)) {
+                Serial.printf("[Test Self] Attachment %d ATLANDI (dosya yok: %s)\n", i, meta.storedPath);
                 continue;
             }
             
-            Serial.printf("[Test Self] Attachment %d EKLENDİ: %s (%d bytes)\n", i, settings.attachments[i].displayName, f.size());
-            
-            // MIME type belirleme (basitleştirilmiş - sendEmailToSelf için)
-            String mimeType = "application/octet-stream"; // Tüm dosyalar için güvenli
-            
-            mime += "--" + boundary + "\r\n";
-            mime += "Content-Type: " + mimeType + "\r\n";
-            mime += "Content-Disposition: attachment; filename=\"" + String(settings.attachments[i].displayName) + "\"\r\n";
-            mime += "Content-Transfer-Encoding: base64\r\n\r\n";
-            
-            uint8_t buf[48];
-            while (f.available()) {
-                int len = f.read(buf, 48);
-                if (len > 0) {
-                    String encoded = base64::encode(buf, len);
-                    mime += encoded + "\r\n";
-                }
+            File testFile = LittleFS.open(meta.storedPath, "r");
+            if (!testFile) {
+                Serial.printf("[Test Self] Attachment %d ATLANDI (açılamadı)\n", i);
+                continue;
             }
-            f.close();
+            size_t fileSize = testFile.size();
+            testFile.close();
+            
+            if (fileSize > 512000) { // 500KB
+                Serial.printf("[Test Self] Attachment %d ATLANDI (çok büyük: %d bytes)\n", i, fileSize);
+                continue;
+            }
+            
+            smtpStreamAttachment(client, boundary, meta);
             addedCount++;
         }
-        Serial.printf("[Test Self] TOPLAM: %d/%d attachment eklendi\n", addedCount, settings.attachmentCount);
+        
+        Serial.printf("[Test Self] TOPLAM: %d/%d attachment gönderildi\n", addedCount, settings.attachmentCount);
     }
     
-    mime += "--" + boundary + "--\r\n";
-    
-    client.print(mime);
+    // MIME sonlandırma
+    client.print("--" + boundary + "--\r\n");
     client.print("\r\n.\r\n");
     
     response = smtpReadLine(client);
@@ -1013,7 +1076,7 @@ bool MailAgent::sendEmailToSelf(const String &subject, const String &body, bool 
         return false;
     }
     
-    Serial.println(F("[SMTP TEST] Test maili kendi adresinize gönderildi"));
+    Serial.println(F("[SMTP TEST] Test maili kendi adresinize gönderildi (streaming)"));
     
     // QUIT
     client.print("QUIT\r\n");
@@ -1082,31 +1145,64 @@ bool MailAgent::sendEmailToRecipient(const String &recipient, const String &subj
         return false;
     }
     
-    // MIME mesajı oluştur (buildMimeMessage kullanamayız - tek alıcı için özel)
+    // ⚠️ YENİ: STREAMING MIME (tek alıcı için - privacy)
     String boundary = "----=_SKDMF_" + String(random(100000, 999999));
-    String mime = "";
     
-    // Headers
-    mime += "From: " + settings.username + "\r\n";
-    mime += "To: " + recipient + "\r\n";  // ← Sadece bu alıcı (privacy)
-    mime += "Subject: " + subject + "\r\n";
-    mime += "MIME-Version: 1.0\r\n";
-    mime += "Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n";
-    mime += "\r\n";
+    // MIME Headers (streaming)
+    client.print("From: " + settings.username + "\r\n");
+    client.print("To: " + recipient + "\r\n");  // ← Sadece bu alıcı (privacy)
+    client.print("Subject: " + subject + "\r\n");
+    client.print("MIME-Version: 1.0\r\n");
+    client.print("Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n");
+    client.print("\r\n");
     
-    // Body part
-    mime += "--" + boundary + "\r\n";
-    mime += "Content-Type: text/plain; charset=UTF-8\r\n";
-    mime += "Content-Transfer-Encoding: 8bit\r\n\r\n";
-    mime += body + "\r\n";
+    // Body
+    client.print("--" + boundary + "\r\n");
+    client.print("Content-Type: text/plain; charset=UTF-8\r\n");
+    client.print("Content-Transfer-Encoding: 8bit\r\n\r\n");
+    client.print(body);
+    client.print("\r\n");
     
-    // Attachments
-    Serial.printf("[Final Recipient] appendAttachments çağrılıyor - includeWarningAttachments=%d, alıcı=%s\n", includeWarningAttachments, recipient.c_str());
-    appendAttachments(mime, boundary, includeWarningAttachments);
+    // Attachments (streaming)
+    Serial.printf("[Final Recipient] Attachment streaming - includeWarningAttachments=%d, alıcı=%s\n", includeWarningAttachments, recipient.c_str());
+    if (includeWarningAttachments && settings.attachmentCount > 0) {
+        uint8_t addedCount = 0;
+        
+        for (uint8_t i = 0; i < settings.attachmentCount; ++i) {
+            const auto &meta = settings.attachments[i];
+            
+            if (!meta.forFinal) {
+                Serial.printf("[Final Recipient] Attachment %d ATLANDI (forFinal=false)\n", i);
+                continue;
+            }
+            
+            if (!LittleFS.exists(meta.storedPath)) {
+                Serial.printf("[Final Recipient] Attachment %d ATLANDI (dosya yok)\n", i);
+                continue;
+            }
+            
+            File testFile = LittleFS.open(meta.storedPath, "r");
+            if (!testFile) {
+                Serial.printf("[Final Recipient] Attachment %d ATLANDI (açılamadı)\n", i);
+                continue;
+            }
+            size_t fileSize = testFile.size();
+            testFile.close();
+            
+            if (fileSize > 512000) { // 500KB
+                Serial.printf("[Final Recipient] Attachment %d ATLANDI (çok büyük: %d bytes)\n", i, fileSize);
+                continue;
+            }
+            
+            smtpStreamAttachment(client, boundary, meta);
+            addedCount++;
+        }
+        
+        Serial.printf("[Final Recipient] TOPLAM: %d/%d attachment gönderildi\n", addedCount, settings.attachmentCount);
+    }
     
-    mime += "--" + boundary + "--\r\n";
-    
-    client.print(mime);
+    // MIME sonlandırma
+    client.print("--" + boundary + "--\r\n");
     client.print("\r\n.\r\n");
     
     response = smtpReadLine(client);
@@ -1127,126 +1223,69 @@ bool MailAgent::sendEmailToRecipient(const String &recipient, const String &subj
 }
 
 String MailAgent::buildMimeMessage(const String &subject, const String &body, bool includeWarningAttachments) {
-    String boundary = "----=_SKDMF_" + String(random(100000, 999999));
-    
-    String recipients;
-    for (uint8_t i = 0; i < settings.recipientCount; ++i) {
-        if (settings.recipients[i].length() == 0) continue;
-        if (recipients.length()) recipients += ", ";
-        recipients += settings.recipients[i];
-    }
-
-    String mime;
-    mime += "From: " + settings.username + "\r\n";
-    mime += "To: " + recipients + "\r\n";
-    mime += "Subject: " + subject + "\r\n";
-    mime += "MIME-Version: 1.0\r\n";
-    mime += "Content-Type: multipart/mixed; boundary=\"" + boundary + "\"\r\n\r\n";
-
-    mime += "--" + boundary + "\r\n";
-    mime += "Content-Type: text/plain; charset=UTF-8\r\n";
-    mime += "Content-Transfer-Encoding: 8bit\r\n\r\n";
-    mime += body + "\r\n\r\n";
-
-    appendAttachments(mime, boundary, includeWarningAttachments);
-
-    mime += "--" + boundary + "--\r\n";
-    return mime;
+    // ⚠️ DEPRECATED - Bu fonksiyon artık KULLANILMIYOR
+    // Tüm mail fonksiyonları streaming kullanıyor (RAM tasarrufu için)
+    Serial.println(F("[DEPRECATED] buildMimeMessage() çağrıldı - lütfen streaming kullanın"));
+    return "";
 }
 
-void MailAgent::appendAttachments(String &mime, const String &boundary, bool warning) {
-    Serial.printf("[Attachment] Ekleniyor - warning=%d, attachmentCount=%d\n", warning, settings.attachmentCount);
+// ⚠️ ÖNEMLİ: STREAM ATTACHMENT - RAM TASARRUFU İÇİN
+// String yerine direkt WiFiClientSecure'a yazıyoruz
+void MailAgent::smtpStreamAttachment(WiFiClientSecure &client, const String &boundary, const AttachmentMeta &meta) {
+    Serial.printf("[Stream] Dosya stream ediliyor: %s (%d bytes)\n", meta.displayName, meta.size);
     
-    if (settings.attachmentCount == 0) {
-        Serial.println(F("[Attachment] UYARI: Sistemde hiç attachment tanımlanmamış!"));
+    File file = LittleFS.open(meta.storedPath, "r");
+    if (!file) {
+        Serial.printf("[Stream] HATA: Dosya açılamadı: %s\n", meta.storedPath);
         return;
     }
     
-    uint8_t addedCount = 0;
+    // MIME type belirleme
+    String mimeType = "application/octet-stream";
     
-    for (uint8_t i = 0; i < settings.attachmentCount; ++i) {
-        const auto &meta = settings.attachments[i];
+    // MIME headers
+    client.print("--" + boundary + "\r\n");
+    client.print("Content-Type: " + mimeType + "; name=\"" + String(meta.displayName) + "\"\r\n");
+    client.print("Content-Transfer-Encoding: base64\r\n");
+    client.print("Content-Disposition: attachment; filename=\"" + String(meta.displayName) + "\"\r\n\r\n");
+    
+    // Base64 streaming (57-byte chunks = 76-char base64 lines - RFC 2045 compliant)
+    const size_t CHUNK_SIZE = 57; // 57*4/3 = 76 chars
+    uint8_t buffer[CHUNK_SIZE];
+    size_t totalRead = 0;
+    size_t fileSize = file.size();
+    
+    while (file.available() && totalRead < fileSize) {
+        size_t bytesRead = file.read(buffer, CHUNK_SIZE);
         
-        Serial.printf("[Attachment %d] forWarning=%d, forFinal=%d, path=%s, displayName=%s\n", 
-            i, meta.forWarning, meta.forFinal, meta.storedPath, meta.displayName);
-        
-        if (warning && !meta.forWarning) {
-            Serial.printf("[Attachment %d] ATLANDI (warning mail, forWarning=false)\n", i);
-            continue;
-        }
-        if (!warning && !meta.forFinal) {
-            Serial.printf("[Attachment %d] ATLANDI (final mail, forFinal=false)\n", i);
-            continue;
-        }
-        if (!LittleFS.exists(meta.storedPath)) {
-            Serial.printf("[Attachment %d] ATLANDI (dosya yok: %s)\n", i, meta.storedPath);
-            continue;
-        }
-
-        File file = LittleFS.open(meta.storedPath, "r");
-        if (!file) {
-            Serial.printf("[Attachment %d] ATLANDI (dosya açılamadı)\n", i);
-            continue;
-        }
-
-        // Dosya boyutu kontrolü (1MB = 1048576 bytes)
-        size_t fileSize = file.size();
-        if (fileSize > 1048576) { // 1MB limit
-            Serial.printf("[Attachment %d] ATLANDI (dosya çok büyük: %d bytes > 1MB)\n", i, fileSize);
-            file.close();
-            continue;
-        }
-        
-        // Base64 sonrası boyut kontrolü (%33 büyür)
-        size_t encodedSize = (fileSize * 4 + 2) / 3; // Base64 encoding size
-        if (encodedSize > 700000) { // ~700KB encoded limit (safety margin)
-            Serial.printf("[Attachment %d] ATLANDI (encoded boyut çok büyük: %d bytes)\n", i, encodedSize);
-            file.close();
-            continue;
-        }
-
-        Serial.printf("[Attachment %d] ✓ EKLENDİ - %s (%d bytes)\n", 
-            i, meta.displayName, file.size());
-
-        // MIME type belirleme (basitleştirilmiş - tüm dosyalar için genel)
-        String mimeType = "application/octet-stream"; // Tüm dosya türleri için güvenli
-        
-        Serial.printf("[Attachment %d] MIME Type: %s (universal)\n", i, mimeType.c_str());
-
-        mime += "--" + boundary + "\r\n";
-        mime += "Content-Type: " + mimeType + "; name=\"" + String(meta.displayName) + "\"\r\n";
-        mime += "Content-Transfer-Encoding: base64\r\n";
-        mime += "Content-Disposition: attachment; filename=\"" + String(meta.displayName) + "\"\r\n\r\n";
-
-        // Memory-efficient encoding (büyük dosyalar için)
-        const size_t CHUNK_SIZE = 768; // 768 bytes = 1024 base64 chars (4/3 ratio)
-        uint8_t buffer[CHUNK_SIZE];
-        size_t totalRead = 0;
-        
-        while (file.available() && totalRead < fileSize) {
-            size_t toRead = min((size_t)file.available(), CHUNK_SIZE);
-            size_t bytesRead = file.read(buffer, toRead);
+        if (bytesRead > 0) {
+            String encoded = base64::encode(buffer, bytesRead);
+            client.print(encoded);
+            client.print("\r\n");
+            totalRead += bytesRead;
             
-            if (bytesRead > 0) {
-                String encoded = base64::encode(buffer, bytesRead);
-                mime += encoded + "\r\n";
-                totalRead += bytesRead;
-                
-                // Progress indicator for large files
-                if (fileSize > 50000 && (totalRead % 10000) == 0) {
-                    Serial.printf("[Attachment %d] Encoded: %d/%d bytes (%.1f%%)\n", 
-                        i, totalRead, fileSize, (totalRead * 100.0) / fileSize);
-                }
-            } else {
-                break;
+            // Progress indicator
+            if (fileSize > 50000 && (totalRead % 10000) == 0) {
+                Serial.printf("[Stream] Gönderildi: %d/%d bytes (%.1f%%)\n", 
+                    totalRead, fileSize, (totalRead * 100.0) / fileSize);
             }
+            
+            // Watchdog reset
+            yield();
+        } else {
+            break;
         }
-        file.close();
-        mime += "\r\n";
-        addedCount++;
     }
     
-    Serial.printf("[Attachment] TOPLAM: %d/%d dosya eklendi\n", addedCount, settings.attachmentCount);
+    file.close();
+    client.print("\r\n");
+    Serial.printf("[Stream] ✓ Dosya tamamen gönderildi: %d bytes\n", totalRead);
+}
+
+void MailAgent::appendAttachments(String &mime, const String &boundary, bool warning) {
+    // ⚠️ DEPRECATED - Bu fonksiyon artık KULLANILMIYOR
+    // smtpStreamAttachment() kullanılıyor (RAM tasarrufu için)
+    Serial.println(F("[DEPRECATED] appendAttachments() çağrıldı - lütfen smtpStreamAttachment() kullanın"));
 }
 
 String MailAgent::formatHeader() const {

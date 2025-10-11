@@ -39,7 +39,8 @@ private:
     String smtpReadLine(WiFiClientSecure &client, uint32_t timeoutMs = 5000);
     String base64Encode(const String &input);
     String buildMimeMessage(const String &subject, const String &body, bool includeWarningAttachments);
-    void appendAttachments(String &mime, const String &boundary, bool warning);
+    void appendAttachments(String &mime, const String &boundary, bool warning); // DEPRECATED
+    void smtpStreamAttachment(WiFiClientSecure &client, const String &boundary, const AttachmentMeta &meta); // RAM-efficient streaming
     String formatHeader() const;
     String formatElapsed(const ScheduleSnapshot &snapshot) const;
 };
