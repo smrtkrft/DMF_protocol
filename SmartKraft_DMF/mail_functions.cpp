@@ -304,15 +304,14 @@ bool MailAgent::sendWarning(uint8_t alarmIndex, const ScheduleSnapshot &snapshot
             return mailSuccess; // URL tetiklemeden mail sonucunu döndür
         }
         
-        Serial.printf("[Warning URL] Tetikleniyor: %s\n", settings.warning.getUrl.c_str());
+        Serial.printf("[Warning URL] Tetikleniyor (paralel): %s\n", settings.warning.getUrl.c_str());
         
-        // Task oluştur - main loop'u bloke etmez  
+        // Task oluştur - HEMEN başlat (delay yok)
         String taskName = "WarnURL_" + String(alarmIndex);
         xTaskCreate([](void* param) {
             String url = *((String*)param);
             
-            // Kısa delay - mail client'ın cleanup olması için
-            vTaskDelay(pdMS_TO_TICKS(500));
+            // ⚠️ OPTİMİZASYON: Delay kaldırıldı - hemen tetikle
             
             HTTPClient http;
             
@@ -435,10 +434,12 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
         if (settings.recipients[i].length() == 0) continue;
         
         Serial.printf("[Final] Alıcı %d/%d: %s\n", i + 1, settings.recipientCount, settings.recipients[i].c_str());
-        Serial.printf("[Final] sendEmailToRecipient çağrılıyor - includeWarningAttachments=false\n");
+        Serial.printf("[Final] sendEmailToRecipient çağrılıyor - includeAttachments=true (forFinal dosyalar)\n");
         
         String recipientError;
-        if (!sendEmailToRecipient(settings.recipients[i], subject, body, false, recipientError)) {
+        // ⚠️ DÜZELTİLDİ: includeWarningAttachments parametresi false DEĞİL, true olmalı
+        // Ama bu parametre artık "forFinal" dosyaları kontrol ediyor
+        if (!sendEmailToRecipient(settings.recipients[i], subject, body, true, recipientError)) {
             Serial.printf("[Final] ✗ HATA - %s: %s\n", settings.recipients[i].c_str(), recipientError.c_str());
             allSuccess = false;
             lastError = recipientError;
@@ -446,8 +447,8 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
             Serial.printf("[Final] ✓ BAŞARILI - %s\n", settings.recipients[i].c_str());
         }
         
-        // SMTP sunucuya yük bindirmemek için alıcılar arası kısa bekleme
-        delay(500);
+        // ⚠️ OPTİMİZASYON: SMTP sunucuya yük bindirmemek için kısa bekleme (500ms → 200ms)
+        delay(200);
     }
     
     if (!allSuccess) {
@@ -456,7 +457,8 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
     
     bool mailSuccess = allSuccess;
     
-    // URL tetikleme (mail başarısız olsa bile çalıştır - NON-BLOCKING)
+    // ⚠️ OPTİMİZASYON: URL tetiklemeyi mail gönderimi ile PARALEL başlat
+    // Mail başarısız olsa bile tetikle + NON-BLOCKING
     if (settings.finalContent.getUrl.length() > 0 && WiFi.status() == WL_CONNECTED) {
         // URL Validation - SSRF Koruması
         if (!isValidURL(settings.finalContent.getUrl)) {
@@ -464,14 +466,14 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
             return mailSuccess; // URL tetiklemeden mail sonucunu döndür
         }
         
-        Serial.printf("[Final URL] Tetikleniyor: %s\n", settings.finalContent.getUrl.c_str());
+        Serial.printf("[Final URL] Tetikleniyor (paralel): %s\n", settings.finalContent.getUrl.c_str());
         
-        // Task oluştur - main loop'u bloke etmez
+        // Task oluştur - HEMEN başlat (delay yok)
         xTaskCreate([](void* param) {
             String url = *((String*)param);
             
-            // Kısa delay - mail client'ın cleanup olması için
-            vTaskDelay(pdMS_TO_TICKS(500));
+            // ⚠️ OPTİMİZASYON: Delay kaldırıldı - hemen tetikle
+            // Artık mail ve URL paralel çalışıyor
             
             HTTPClient http;
             
@@ -572,14 +574,13 @@ bool MailAgent::sendWarningTest(const ScheduleSnapshot &snapshot, String &errorM
             return mailSuccess; // URL tetiklemeden mail sonucunu döndür
         }
         
-        Serial.printf("[TEST Warning URL] Tetikleniyor: %s\n", settings.warning.getUrl.c_str());
+        Serial.printf("[TEST Warning URL] Tetikleniyor (paralel): %s\n", settings.warning.getUrl.c_str());
         
-        // Task oluştur - main loop'u bloke etmez
+        // Task oluştur - HEMEN başlat
         xTaskCreate([](void* param) {
             String url = *((String*)param);
             
-            // Kısa delay - mail client'ın cleanup olması için
-            vTaskDelay(pdMS_TO_TICKS(500));
+            // ⚠️ OPTİMİZASYON: Delay kaldırıldı
             
             HTTPClient http;
             
@@ -678,10 +679,51 @@ bool MailAgent::sendFinalTest(const ScheduleSnapshot &snapshot, String &errorMes
     body.replace("{REMAINING}", "0");
     body.replace("%REMAINING%", "0");
 
-    // DMF test: MAİL LİSTESİNE gönder + Final attachments (warning=false)
-    Serial.printf("[Final Test] sendEmail çağrılıyor - includeWarningAttachments=false\n");
-    bool mailSuccess = sendEmail(subject, body, false, errorMessage);
-    Serial.printf("[MAIL TEST] Final/DMF mail gönderimi (listeye + Final attachments): %s\n", mailSuccess ? "BAŞARILI" : "BAŞARISIZ");
+    // ⚠️ DÜZELTİLDİ: DMF protokolü gereği HER ALICIYA AYRI MAIL gönder (privacy)
+    // sendEmail() yerine sendEmailToRecipient() kullan (gerçek sendFinal() gibi)
+    Serial.printf("[Final Test] DMF protokolü - %d alıcıya ayrı ayrı TEST maili gönderiliyor\n", settings.recipientCount);
+    Serial.printf("[Final Test] Attachment sistemi - attachmentCount=%d\n", settings.attachmentCount);
+    
+    // Attachment debug
+    for (uint8_t i = 0; i < settings.attachmentCount; ++i) {
+        Serial.printf("[Final Test] Attachment %d: forFinal=%d, path=%s, name=%s\n", 
+            i, settings.attachments[i].forFinal, settings.attachments[i].storedPath, settings.attachments[i].displayName);
+    }
+    
+    if (settings.recipientCount == 0) {
+        errorMessage = "Mail listesi boş - Test maili gönderilemedi";
+        return false;
+    }
+
+    bool allSuccess = true;
+    String lastError = "";
+    
+    // Her alıcıya AYRI MAIL gönder (DMF protokolü - privacy)
+    for (uint8_t i = 0; i < settings.recipientCount; ++i) {
+        if (settings.recipients[i].length() == 0) continue;
+        
+        Serial.printf("[Final Test] Alıcı %d/%d: %s\n", i + 1, settings.recipientCount, settings.recipients[i].c_str());
+        Serial.printf("[Final Test] sendEmailToRecipient çağrılıyor - includeAttachments=true (forFinal dosyalar)\n");
+        
+        String recipientError;
+        if (!sendEmailToRecipient(settings.recipients[i], subject, body, true, recipientError)) {
+            Serial.printf("[Final Test] ✗ HATA - %s: %s\n", settings.recipients[i].c_str(), recipientError.c_str());
+            allSuccess = false;
+            lastError = recipientError;
+        } else {
+            Serial.printf("[Final Test] ✓ BAŞARILI - %s\n", settings.recipients[i].c_str());
+        }
+        
+        // SMTP sunucuya yük bindirmemek için kısa bekleme
+        delay(200);
+    }
+    
+    if (!allSuccess) {
+        errorMessage = "Bazı alıcılara test maili gönderilemedi: " + lastError;
+    }
+    
+    bool mailSuccess = allSuccess;
+    Serial.printf("[MAIL TEST] Final/DMF mail gönderimi (her alıcıya ayrı + Final attachments): %s\n", mailSuccess ? "BAŞARILI" : "BAŞARISIZ");
     
     // URL tetikleme (Final test - NON-BLOCKING)
     if (settings.finalContent.getUrl.length() > 0 && WiFi.status() == WL_CONNECTED) {
@@ -691,14 +733,13 @@ bool MailAgent::sendFinalTest(const ScheduleSnapshot &snapshot, String &errorMes
             return mailSuccess; // URL tetiklemeden mail sonucunu döndür
         }
         
-        Serial.printf("[TEST Final URL] Tetikleniyor: %s\n", settings.finalContent.getUrl.c_str());
+        Serial.printf("[TEST Final URL] Tetikleniyor (paralel): %s\n", settings.finalContent.getUrl.c_str());
         
-        // Task oluştur - main loop'u bloke etmez
+        // Task oluştur - HEMEN başlat
         xTaskCreate([](void* param) {
             String url = *((String*)param);
             
-            // Kısa delay - mail client'ın cleanup olması için
-            vTaskDelay(pdMS_TO_TICKS(500));
+            // ⚠️ OPTİMİZASYON: Delay kaldırıldı
             
             HTTPClient http;
             
@@ -832,15 +873,16 @@ bool MailAgent::smtpSendMail(WiFiClientSecure &client, const String &subject, co
     
     // Attachments (streaming - RAM efficient)
     if (includeAttachments && settings.attachmentCount > 0) {
-        Serial.printf("[SMTP Stream] %d attachment kontrol ediliyor\n", settings.attachmentCount);
+        Serial.printf("[SMTP Stream] %d attachment kontrol ediliyor (includeAttachments=%d)\n", settings.attachmentCount, includeAttachments);
         uint8_t addedCount = 0;
         
         for (uint8_t i = 0; i < settings.attachmentCount; ++i) {
             const auto &meta = settings.attachments[i];
             
-            // Warning/Final kontrolü
-            if (includeAttachments && !meta.forWarning && !meta.forFinal) {
-                Serial.printf("[SMTP Stream] Attachment %d ATLANDI (forWarning=false && forFinal=false)\n", i);
+            // ⚠️ DÜZELTİLDİ: forFinal dosyaları ekle (sendEmail fonksiyonu genelde Final test için kullanılıyor)
+            // Eğer dosya forFinal=true ise ekle
+            if (!meta.forFinal) {
+                Serial.printf("[SMTP Stream] Attachment %d ATLANDI (forFinal=false)\n", i);
                 continue;
             }
             
@@ -870,6 +912,12 @@ bool MailAgent::smtpSendMail(WiFiClientSecure &client, const String &subject, co
         }
         
         Serial.printf("[SMTP Stream] TOPLAM: %d/%d attachment gönderildi\n", addedCount, settings.attachmentCount);
+    } else {
+        if (!includeAttachments) {
+            Serial.println(F("[SMTP Stream] Attachment ekleme kapalı (includeAttachments=false)"));
+        } else if (settings.attachmentCount == 0) {
+            Serial.println(F("[SMTP Stream] Hiç attachment tanımlanmamış"));
+        }
     }
     
     // MIME sonlandırma
