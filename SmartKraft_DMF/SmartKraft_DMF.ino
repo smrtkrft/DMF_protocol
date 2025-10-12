@@ -5,6 +5,7 @@
 #include <LittleFS.h>
 #include <esp_system.h>
 #include <DNSServer.h>
+#include <esp_task_wdt.h>  // Watchdog timer için
 
 #include "config_store.h"
 #include "scheduler.h"
@@ -13,8 +14,12 @@
 #include "web_handlers.h"
 #include "test_functions.h"
 
-constexpr uint8_t BUTTON_PIN = 3;
-constexpr uint8_t RELAY_PIN = 10;
+// Pin tanımları - XIAO ESP32C6 (GERÇEK TEST EDİLMİŞ DEĞERLER)
+// Kaynak: C6-Pin&Gpio.md
+// D3 = GPIO21 (BUTTON), D10 = GPIO18 (RELAY)
+
+constexpr uint8_t BUTTON_PIN = 21;   // D3 -> GPIO21
+constexpr uint8_t RELAY_PIN = 18;    // D10 -> GPIO18
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 200;
 constexpr uint32_t STATUS_PERSIST_INTERVAL_MS = 60000;
 
@@ -38,8 +43,17 @@ String deviceId;
 
 String generateDeviceId() {
     uint64_t mac = ESP.getEfuseMac();
+    // İlk 4 hex karakter (üst 16 bit) her kart için benzersiz
     char buffer[32];
-    snprintf(buffer, sizeof(buffer), "SmartKraft-DMF%06llX", (unsigned long long)(mac & 0xFFFFFFULL));
+    snprintf(buffer, sizeof(buffer), "SmartKraft-DMF%04X", (uint32_t)((mac >> 32) & 0xFFFF));
+    return String(buffer);
+}
+
+String generateAPName() {
+    uint64_t mac = ESP.getEfuseMac();
+    // İlk 4 hex karakter (üst 16 bit) her kart için benzersiz
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "SmartKraft-DMF%04X", (uint32_t)((mac >> 32) & 0xFFFF));
     return String(buffer);
 }
 
@@ -48,6 +62,9 @@ void initHardware() {
     pinMode(RELAY_PIN, OUTPUT);
     digitalWrite(RELAY_PIN, LOW);
     relayLatched = false;
+    
+    Serial.printf("[Init] BUTTON: D3 (GPIO%d)\n", BUTTON_PIN);
+    Serial.printf("[Init] RELAY: D10 (GPIO%d)\n", RELAY_PIN);
 }
 
 void latchRelay(bool state) {
@@ -77,53 +94,61 @@ void processAlarms() {
     if (scheduler.alarmDue(alarmIndex)) {
         ScheduleSnapshot snap = scheduler.snapshot();
         Serial.printf("[Alarm] %u numaralı alarm tetiklendi\n", alarmIndex + 1);
-        networkManager.ensureConnected(true);
         
-        // URL tetikleme mail_functions.cpp içinde yapılıyor (güvenli + validation)
+        if (!networkManager.isConnected()) {
+            networkManager.ensureConnected(true);
+        }
         
         String error;
         if (!mailAgent.sendWarning(alarmIndex, snap, error)) {
             Serial.printf("[Mail] Uyarı maili gönderilemedi: %s\n", error.c_str());
         } else {
-            Serial.println(F("[Mail] Uyarı maili gönderildi (sadece gönderen adrese)"));
+            Serial.println(F("[Mail] Uyarı maili gönderildi"));
         }
+        
         scheduler.acknowledgeAlarm(alarmIndex);
         scheduler.persist();
+        yield();
     }
 
     if (scheduler.finalDue()) {
         ScheduleSnapshot snap = scheduler.snapshot();
         Serial.println(F("[Final] Süre doldu, röle tetikleniyor"));
         latchRelay(true);
-        networkManager.ensureConnected(true);
         
-        // URL tetikleme mail_functions.cpp içinde yapılıyor (güvenli + validation)
+        if (!networkManager.isConnected()) {
+            networkManager.ensureConnected(true);
+        }
         
         String error;
         if (!mailAgent.sendFinal(snap, error)) {
             Serial.printf("[Mail] Final maili gönderilemedi: %s\n", error.c_str());
         } else {
-            Serial.println(F("[Mail] Final maili gönderildi (tüm alıcılara ayrı ayrı)"));
+            Serial.println(F("[Mail] Final maili gönderildi"));
             
-            // ⚠️ YENİ: Final mail başarıyla gönderildikten sonra 60 saniye bekle ve reboot
             if (!finalMailSent) {
                 finalMailSent = true;
                 finalMailSentTime = millis();
-                Serial.println(F("[Reboot] Final mail gönderildi - 60 saniye sonra cihaz yeniden başlatılacak"));
+                Serial.println(F("[Reboot] 60 saniye sonra cihaz yeniden başlatılacak"));
             }
         }
+        
         scheduler.acknowledgeFinal();
         scheduler.persist();
+        yield();
     }
 }
 
 void handleButton() {
     bool state = digitalRead(BUTTON_PIN);
+    
     if (state != lastButtonState) {
         if (millis() - lastButtonChange > BUTTON_DEBOUNCE_MS) {
             lastButtonChange = millis();
             lastButtonState = state;
+            
             if (state == LOW) {
+                Serial.println(F("[BUTTON] Fiziksel buton basıldı - Timer sıfırlanıyor"));
                 resetTimerFromButton();
             }
         }
@@ -158,7 +183,8 @@ void setup() {
     mailAgent.begin(&configStore, &networkManager, deviceId);
     
     Serial.println(F("[Init] Web sunucusu başlatılıyor..."));
-    webUI.begin(&webServer, &configStore, &scheduler, &mailAgent, &networkManager, deviceId, &dnsServer);
+    String apName = generateAPName();
+    webUI.begin(&webServer, &configStore, &scheduler, &mailAgent, &networkManager, deviceId, &dnsServer, apName);
     
     Serial.println(F("[Init] Test arayüzü başlatılıyor..."));
     testInterface.begin(&scheduler, &mailAgent);
@@ -177,23 +203,34 @@ void setup() {
     lastButtonChange = millis();
     lastPersist = millis();
     
-    delay(1000);
     Serial.println(F("[Init] WebServer başlatılıyor..."));
     webUI.startServer();
     
-    // WiFi sleep mode'u devre dışı bırak (light sleep engellensin)
     WiFi.setSleep(WIFI_PS_NONE);
-    Serial.println(F("[Init] WiFi sleep mode: NONE (always awake)"));
-    
     Serial.println(F("[Init] Sistem hazır!"));
 }
 
 void loop() {
+    static unsigned long lastLoop = 0;
+    static unsigned long loopCounter = 0;
+    
+    // Web server handler - en yüksek öncelik
     webUI.loop();
+    
+    // Core timer functionality
     scheduler.tick();
     handleButton();
-    processAlarms();
-    testInterface.processSerial();
+    
+    // Alarmları daha az sıklıkta kontrol et - her 500ms'de bir
+    if (millis() - lastLoop > 500) {
+        processAlarms();
+        lastLoop = millis();
+    }
+    
+    // Test interface'i daha az sıklıkta - her 1 saniyede bir
+    if (loopCounter % 100 == 0) { // 10ms x 100 = 1s
+        testInterface.processSerial();
+    }
 
     // ⚠️ YENİ: Final mail gönderildikten 60 saniye sonra reboot
     if (finalMailSent) {
@@ -221,8 +258,16 @@ void loop() {
         }
     }
 
+    // Dosya sistemine yazma işlemi - daha az sıklıkta (her 60 saniye)
     if (millis() - lastPersist > STATUS_PERSIST_INTERVAL_MS) {
         scheduler.persist();
         lastPersist = millis();
     }
+    
+    // Sistem responsive tutmak için
+    yield();
+    loopCounter++;
+    
+    // Minimal delay - çok hızlı döngüyü önlemek için
+    delayMicroseconds(100);
 }

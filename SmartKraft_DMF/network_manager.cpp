@@ -49,10 +49,12 @@ std::vector<DMFNetworkManager::ScanResult> DMFNetworkManager::scanNetworks() {
 }
 
 bool DMFNetworkManager::connectToKnown() {
-    if (current.primarySSID.length() > 0 && connectTo(current.primarySSID, current.primaryPassword)) {
+    // Primary network için daha kısa timeout (5 saniye)
+    if (current.primarySSID.length() > 0 && connectTo(current.primarySSID, current.primaryPassword, 5000)) {
         return true;
     }
-    if (current.secondarySSID.length() > 0 && connectTo(current.secondarySSID, current.secondaryPassword)) {
+    // Secondary network için daha kısa timeout (5 saniye)
+    if (current.secondarySSID.length() > 0 && connectTo(current.secondarySSID, current.secondaryPassword, 5000)) {
         return true;
     }
     return false;
@@ -85,12 +87,14 @@ bool DMFNetworkManager::connectTo(const String &ssid, const String &password, ui
     wl_status_t status = WiFi.status();
     if (status == WL_CONNECTED || status == WL_CONNECT_FAILED) {
         WiFi.disconnect(false, false); // WiFi'yi reset etme, sadece disconnect
-        delay(100);
+        delay(50); // 100ms → 50ms (daha hızlı)
     }
 
     WiFi.begin(ssid.c_str(), password.length() ? password.c_str() : nullptr);
 
     uint32_t start = millis();
+    uint32_t lastYield = millis();
+    
     while (millis() - start < timeoutMs) {
         wl_status_t currentStatus = WiFi.status();
         
@@ -105,11 +109,16 @@ bool DMFNetworkManager::connectTo(const String &ssid, const String &password, ui
             break;
         }
         
-        delay(250); // 500ms → 250ms (daha responsive)
+        // Yield her 100ms'de bir - responsive tutmak için
+        if (millis() - lastYield > 100) {
+            yield();
+            lastYield = millis();
+        }
+        
+        delay(100); // 250ms → 100ms (daha responsive)
     }
     
     Serial.println(F("[WiFi] Bağlantı zaman aşımı veya başarısız"));
-    // Disconnect'i kaldır - mode zaten ayarlı, tekrar deneyebilir
     return false;
 }
 
@@ -119,9 +128,10 @@ bool DMFNetworkManager::connectToOpen() {
     for (auto &net : networks) {
         if (!net.open) continue;
         Serial.printf("[WiFi] Açık ağ deneme: %s\n", net.ssid.c_str());
-        if (connectTo(net.ssid, "", 15000)) {
-            // İnternet testi 60 saniye
-            if (testInternet(60000)) {
+        // Açık ağlar için daha kısa timeout (8 saniye)
+        if (connectTo(net.ssid, "", 8000)) {
+            // İnternet testi de kısa tutuldu (30 saniye)
+            if (testInternet(30000)) {
                 Serial.println(F("[WiFi] Açık ağda internet erişimi doğrulandı"));
                 return true;
             } else {

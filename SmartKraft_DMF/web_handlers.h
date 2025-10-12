@@ -7,6 +7,12 @@
 #include "network_manager.h"
 #include "config_store.h"
 
+// Performans optimizasyonları için tanımlar
+#define JSON_CAPACITY_SMALL 512    // Küçük JSON responses için
+#define JSON_CAPACITY_MEDIUM 1024  // Orta JSON responses için
+#define JSON_CAPACITY_LARGE 2048   // Büyük JSON responses için
+#define SERIAL_DEBUG_MINIMAL       // Verbose serial debug'ı azalt
+
 class WebInterface {
 public:
     void begin(WebServer *server,
@@ -15,7 +21,8 @@ public:
                MailAgent *mail,
                DMFNetworkManager *netManager,
                const String &deviceId,
-               DNSServer *dns = nullptr);
+               DNSServer *dns = nullptr,
+               const String &apName = "SmartKraft-DMF");
 
     void startServer();
     void loop();
@@ -30,8 +37,14 @@ private:
     DMFNetworkManager *network = nullptr;
     DNSServer *dnsServer = nullptr;
     String deviceId;
+    String apName;
 
     unsigned long lastStatusPush = 0;
+    
+    // Performance optimizations - cache frequently accessed data
+    unsigned long lastStatusCache = 0;
+    String cachedStatusResponse;
+    static const unsigned long STATUS_CACHE_DURATION = 1000; // 1 saniye cache
 
     void handleIndex();
     void handleStatus();

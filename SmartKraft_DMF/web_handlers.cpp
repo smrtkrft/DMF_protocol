@@ -337,7 +337,7 @@ Timer completed. Urgent action required.</textarea>
                         <div style="font-style:italic; font-size:0.9em; color:#888; border-top:1px solid #222; padding-top:12px; margin-top:12px; white-space:pre-line;" data-i18n="wifi.emergencyNote">Note: Since it poses a security risk, it is recommended to use only in critical situations. Mail connection is TLS/SSL encrypted.</div>
                     </div>
                 </div>
-                <div class="button-bar" style="justify-content:flex-start; margin-top:30px;">
+                <div class="button-bar" style="justify-content:center; margin-top:30px;">
                     <button onclick="saveWiFiSettings()" data-i18n="buttons.save">Save</button>
                     <button class="btn-warning" onclick="scanNetworks()" data-i18n="buttons.scan">Scan</button>
                     <button class="btn-danger" onclick="factoryReset()" data-i18n="buttons.factoryReset">Factory Reset</button>
@@ -1188,14 +1188,14 @@ Timer completed. Urgent action required.</textarea>
             loadWiFiSettings(); // async ama await etme
             bindStaticIpToggles();
             
-            // 6. Düzenli status güncelleme (sadece sayfa görünürken)
+            // 6. Düzenli status güncelleme (daha hızlı - responsive UI için)
             console.log('[INIT] Setting up status polling...');
-            let statusInterval = setInterval(loadStatus, 3000);
+            let statusInterval = setInterval(loadStatus, 2000); // 3000ms → 2000ms
             
             // Page Visibility API - Sayfa arka plandayken polling'i durdur
             document.addEventListener('visibilitychange', function() {
                 if (document.hidden) {
-                    // Sayfa arka planda - interval'i durdur
+                    // Sayfa arka planda - interval'i durdur (memory save)
                     if (statusInterval) {
                         clearInterval(statusInterval);
                         statusInterval = null;
@@ -1204,7 +1204,7 @@ Timer completed. Urgent action required.</textarea>
                     // Sayfa ön planda - interval'i yeniden başlat
                     if (!statusInterval) {
                         loadStatus(); // Hemen bir kez çalıştır
-                        statusInterval = setInterval(loadStatus, 3000);
+                        statusInterval = setInterval(loadStatus, 2000); // 3000ms → 2000ms
                     }
                 }
             });
@@ -1219,7 +1219,8 @@ Timer completed. Urgent action required.</textarea>
 )rawliteral";
 
 namespace {
-constexpr size_t JSON_CAPACITY = 4096;
+// JSON capacity tanımları header'da
+// constexpr size_t JSON_CAPACITY = 4096; // Bu satır artık gereksiz
 constexpr size_t MAX_UPLOAD_SIZE = 512000; // 500 KB (base64 sonrası ~660KB olur)
 
 struct UploadContext {
@@ -1247,7 +1248,8 @@ void WebInterface::begin(WebServer *srv,
                          MailAgent *mailAgent,
                          DMFNetworkManager *netMgr,
                          const String &deviceIdentifier,
-                         DNSServer *dns) {
+                         DNSServer *dns,
+                         const String &apName) {
     server = srv;
     store = storePtr;
     scheduler = sched;
@@ -1255,6 +1257,7 @@ void WebInterface::begin(WebServer *srv,
     network = netMgr;
     deviceId = deviceIdentifier;
     dnsServer = dns;
+    this->apName = apName; // AP name'i kaydet
 
     server->on("/", HTTP_GET, [this]() { handleIndex(); });
     server->on("/api/status", HTTP_GET, [this]() { handleStatus(); });
@@ -1359,7 +1362,7 @@ void WebInterface::startServer() {
     
     // AP modunu başlat (eğer gerekiyorsa)
     if (shouldStartAP) {
-        WiFi.softAP("SmartKraft-DMF", "12345678");
+        WiFi.softAP(apName.c_str(), "12345678"); // Dinamik AP ismi kullan
         delay(500);
         
         // Captive portal için DNS server başlat
@@ -1368,7 +1371,7 @@ void WebInterface::startServer() {
             Serial.println(F("[DNS] Captive portal DNS başlatıldı"));
         }
         
-        Serial.printf("[Web] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
+        Serial.printf("[Web] AP (%s) IP: %s\n", apName.c_str(), WiFi.softAPIP().toString().c_str());
     } else {
         Serial.println(F("[Web] AP modu kapalı (kullanıcı ayarı)"));
         
@@ -1474,37 +1477,68 @@ void WebInterface::broadcastStatus() {
 }
 
 void WebInterface::handleIndex() {
+    // Static content için cache header'ları
+    server->sendHeader("Cache-Control", "public, max-age=3600"); // 1 saat cache
+    server->sendHeader("Connection", "keep-alive");
     server->send_P(200, "text/html", INDEX_HTML);
 }
 
 void WebInterface::handleStatus() {
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    // Cache kontrol - performance optimization
+    unsigned long now = millis();
+    if (now - lastStatusCache < STATUS_CACHE_DURATION && !cachedStatusResponse.isEmpty()) {
+        server->send(200, "application/json", cachedStatusResponse);
+        return;
+    }
+    
+    // Performans optimizasyonu: Orta boyut JSON capacity kullan  
+    StaticJsonDocument<JSON_CAPACITY_MEDIUM> doc;
     ScheduleSnapshot snap = scheduler->snapshot();
+    
+    // Core timer bilgileri
     doc["timerActive"] = snap.timerActive;
     doc["paused"] = scheduler->isPaused();
     doc["remainingSeconds"] = snap.remainingSeconds;
     doc["nextAlarmIndex"] = snap.nextAlarmIndex;
     doc["finalTriggered"] = snap.finalTriggered;
     doc["totalSeconds"] = scheduler->totalSeconds();
-    auto alarms = doc.createNestedArray("alarms");
-    for (uint8_t i = 0; i < snap.totalAlarms; ++i) {
-        alarms.add(snap.alarmOffsets[i]);
+    
+    // Alarmları sadece aktif durumda gönder
+    if (snap.timerActive && snap.totalAlarms > 0) {
+        auto alarms = doc.createNestedArray("alarms");
+        for (uint8_t i = 0; i < snap.totalAlarms; ++i) {
+            alarms.add(snap.alarmOffsets[i]);
+        }
     }
-    doc["wifiConnected"] = network->isConnected();
-    doc["ssid"] = network->currentSSID();
-    doc["ip"] = network->currentIP().toString();
+    
+    // Network status - hızlı kontrol
+    bool connected = network->isConnected();
+    doc["wifiConnected"] = connected;
+    if (connected) {
+        doc["ssid"] = network->currentSSID();
+        doc["ip"] = network->currentIP().toString();
+    }
+    
     doc["deviceId"] = deviceId;
+    doc["freeHeap"] = ESP.getFreeHeap(); // Memory monitoring
+    
+    // WiFi config bilgileri sadece gerekirse
     WiFiSettings wifi = network->getConfig();
     doc["allowOpenNetworks"] = wifi.allowOpenNetworks;
     doc["apModeEnabled"] = wifi.apModeEnabled;
     doc["primaryStaticEnabled"] = wifi.primaryStaticEnabled;
     doc["secondaryStaticEnabled"] = wifi.secondaryStaticEnabled;
     
-    sendJson(doc);
+    // Response'u cache'le
+    cachedStatusResponse = "";
+    serializeJson(doc, cachedStatusResponse);
+    lastStatusCache = now;
+    
+    server->send(200, "application/json", cachedStatusResponse);
 }
 
 void WebInterface::handleTimerGet() {
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    StaticJsonDocument<JSON_CAPACITY_SMALL> doc; // Küçük response
     auto settings = scheduler->settings();
     
     // Dakika/Saat/Gün seçimi
@@ -1523,22 +1557,30 @@ void WebInterface::handleTimerGet() {
 }
 
 void WebInterface::handleTimerUpdate() {
+#ifndef SERIAL_DEBUG_MINIMAL
     Serial.println(F("[API] /api/timer PUT - Alarm ayarları güncelleniyor"));
+#endif
     
     if (!server->hasArg("plain")) {
+#ifndef SERIAL_DEBUG_MINIMAL
         Serial.println(F("[API] HATA - Body yok"));
+#endif
         server->send(400, "application/json", "{\"error\":\"JSON bekleniyor\"}");
         return;
     }
     
     String body = server->arg("plain");
+#ifndef SERIAL_DEBUG_MINIMAL
     Serial.printf("[API] Request body: %s\n", body.c_str());
+#endif
     
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    StaticJsonDocument<JSON_CAPACITY_SMALL> doc; // Küçük request
     DeserializationError error = deserializeJson(doc, body);
     
     if (error) {
+#ifndef SERIAL_DEBUG_MINIMAL
         Serial.printf("[API] JSON parse HATASI: %s\n", error.c_str());
+#endif
         server->send(400, "application/json", "{\"error\":\"JSON parse error\"}");
         return;
     }
@@ -1562,20 +1604,19 @@ void WebInterface::handleTimerUpdate() {
         settings.alarmCount = constrain(settings.alarmCount, (uint8_t)0, (uint8_t)MAX_ALARMS);
         settings.enabled = doc["enabled"].as<bool>();
 
+#ifndef SERIAL_DEBUG_MINIMAL
         Serial.printf("[API] Alarm ayarları: %s %d, %d alarm, %s\n", 
                       unit.c_str(), settings.totalValue, settings.alarmCount, 
                       settings.enabled ? "Aktif" : "Pasif");
+#endif
 
-        Serial.println(F("[API] scheduler->configure() çağrılıyor..."));
         scheduler->configure(settings);
-        Serial.println(F("[API] configure() tamamlandı"));
-        
-        Serial.println(F("[API] Response gönderiliyor..."));
         server->send(200, "application/json", "{\"status\":\"ok\"}");
-        Serial.println(F("[API] Alarm ayarları başarıyla kaydedildi"));
         
     } catch (...) {
+#ifndef SERIAL_DEBUG_MINIMAL
         Serial.println(F("[API] EXCEPTION - configure() patladı!"));
+#endif
         server->send(500, "application/json", "{\"error\":\"Internal server error\"}");
     }
 }
@@ -1624,7 +1665,7 @@ void WebInterface::handleVirtualButton() {
 
 void WebInterface::handleMailGet() {
     MailSettings mailSettings = mail->currentConfig();
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    StaticJsonDocument<JSON_CAPACITY_LARGE> doc; // Mail settings büyük olabilir
     doc["smtpServer"] = mailSettings.smtpServer;
     doc["smtpPort"] = mailSettings.smtpPort;
     doc["username"] = mailSettings.username;
@@ -1655,7 +1696,7 @@ void WebInterface::handleMailUpdate() {
         server->send(400, "application/json", "{\"error\":\"JSON bekleniyor\"}");
         return;
     }
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    StaticJsonDocument<JSON_CAPACITY_LARGE> doc; // Mail update büyük olabilir
     if (deserializeJson(doc, server->arg("plain"))) {
         server->send(400, "application/json", "{\"error\":\"JSON hata\"}");
         return;
@@ -1765,7 +1806,7 @@ void WebInterface::handleMailTest() {
 
 void WebInterface::handleWiFiGet() {
     WiFiSettings wifi = network->getConfig();
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    StaticJsonDocument<JSON_CAPACITY_MEDIUM> doc; // WiFi settings orta boyut
     doc["primarySSID"] = wifi.primarySSID;
     doc["primaryPassword"] = wifi.primaryPassword;
     doc["secondarySSID"] = wifi.secondarySSID;
@@ -1787,7 +1828,7 @@ void WebInterface::handleWiFiGet() {
 
 void WebInterface::handleWiFiUpdate() {
     if (!server->hasArg("plain")) { server->send(400, "application/json", "{\"error\":\"json\"}"); return; }
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    StaticJsonDocument<JSON_CAPACITY_MEDIUM> doc; // WiFi update orta boyut
     if (deserializeJson(doc, server->arg("plain"))) { server->send(400, "application/json", "{\"error\":\"json\"}"); return; }
     
     WiFiSettings wifi = network->getConfig();
@@ -1818,15 +1859,15 @@ void WebInterface::handleWiFiUpdate() {
     if (wifi.apModeEnabled && isStaConnected) {
         // AP + STA (Dual mode)
         WiFi.mode(WIFI_AP_STA);
-        WiFi.softAP("SmartKraft-DMF", "12345678");
+        WiFi.softAP(apName.c_str(), "12345678"); // Dinamik AP ismi
         if (dnsServer) dnsServer->start(53, "*", WiFi.softAPIP());
-        Serial.println(F("[WiFi] AP modu açıldı (Dual mode)"));
+        Serial.printf("[WiFi] AP modu açıldı (Dual mode): %s\n", apName.c_str());
     } else if (wifi.apModeEnabled && !isStaConnected) {
         // Sadece AP
         WiFi.mode(WIFI_AP);
-        WiFi.softAP("SmartKraft-DMF", "12345678");
+        WiFi.softAP(apName.c_str(), "12345678"); // Dinamik AP ismi
         if (dnsServer) dnsServer->start(53, "*", WiFi.softAPIP());
-        Serial.println(F("[WiFi] AP modu açıldı (Sadece AP)"));
+        Serial.printf("[WiFi] AP modu açıldı (Sadece AP): %s\n", apName.c_str());
     } else if (!wifi.apModeEnabled && isStaConnected) {
         // Sadece STA - AP'yi kapat
         if (dnsServer) dnsServer->stop();
@@ -1849,7 +1890,7 @@ void WebInterface::handleWiFiUpdate() {
 
 void WebInterface::handleWiFiScan() {
     auto list = network->scanNetworks();
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    StaticJsonDocument<JSON_CAPACITY_MEDIUM> doc; // Network scan orta boyut
     auto arr = doc.createNestedArray("networks");
     String cur = WiFi.SSID();
     for (auto &net : list) {
@@ -1864,7 +1905,7 @@ void WebInterface::handleWiFiScan() {
 
 void WebInterface::handleAttachmentList() {
     MailSettings mailSettings = mail->currentConfig();
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    StaticJsonDocument<JSON_CAPACITY_MEDIUM> doc; // Attachment list orta boyut
     auto arr = doc.createNestedArray("attachments");
     for (uint8_t i = 0; i < mailSettings.attachmentCount; ++i) {
         auto entry = arr.createNestedObject();
@@ -1974,10 +2015,14 @@ void WebInterface::handleAttachmentDelete() {
 }
 
 void WebInterface::handleLogs() {
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    StaticJsonDocument<JSON_CAPACITY_SMALL> doc; // Logs küçük
     doc["heap"] = ESP.getFreeHeap();
     doc["uptime"] = millis() / 1000;
     doc["wifiStatus"] = WiFi.status();
+    doc["heapInfo"]["total"] = ESP.getHeapSize();
+    doc["heapInfo"]["free"] = ESP.getFreeHeap();
+    doc["heapInfo"]["minFree"] = ESP.getMinFreeHeap();
+    doc["heapInfo"]["maxAlloc"] = ESP.getMaxAllocHeap();
     sendJson(doc);
 }
 
@@ -2005,6 +2050,13 @@ void WebInterface::handleI18n() {
 void WebInterface::sendJson(const JsonDocument &doc) {
     String response;
     serializeJson(doc, response);
+    
+    // Performance optimizations - HTTP headers
+    server->sendHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    server->sendHeader("Pragma", "no-cache");
+    server->sendHeader("Expires", "0");
+    server->sendHeader("Connection", "keep-alive"); // Keep connection alive
+    
     server->send(200, "application/json", response);
 }
 
