@@ -443,66 +443,87 @@ Timer completed. Urgent action required.</textarea>
             </div>
 
             <div id="infoTab" class="tab-pane">
-                <div class="section-title" style="margin-top:0;" data-i18n="info.title">What is SmartKraft DMF?</div>
+                <div class="section-title" style="margin-top:0;" data-i18n="info.title">SmartKraft DMF User Guide</div>
                 <div style="font-size:0.9em; line-height:1.6; color:#ccc; margin-bottom:20px;" data-i18n="info.description">
-                    SmartKraft DMF (Delayed Message Framework) is an intelligent countdown and alarm device designed for critical timing and notification systems. It provides automatic email delivery, emergency connection management and relay control within the time you specify.
+                    SmartKraft DMF (Delayed Message Framework) is an intelligent countdown timer with automatic email delivery, emergency WiFi fallback, and relay control for critical timing scenarios.
                 </div>
 
-                <div class="section-title" data-i18n="info.howToUse">How to Use?</div>
-                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px; white-space:pre-line;">
-<strong data-i18n="info.step1Title">1. Alarm Settings</strong>
-<span data-i18n="info.step1Text">• Set countdown duration (days or hours)
-• Set alarm count (0-10)
-• Enable and start the timer</span>
-
-<strong data-i18n="info.step2Title">2. Mail Settings</strong>
-<span data-i18n="info.step2Text">• Enter SMTP server information (ProtonMail recommended)
-• Add email recipients (maximum 10)
-• Customize Warning and Final email content
-• Upload optional file attachments (maximum 5 files, 500KB limit per file)</span>
-
-<strong data-i18n="info.step3Title">3. Connection Settings</strong>
-<span data-i18n="info.step3Text">• Define your primary and backup WiFi networks
-• Configure static IP if needed
-• Consider allowing connection to unsecured networks for emergency
-• Set browser access password (minimum 6 characters)</span>
-
-<strong data-i18n="info.step4Title">4. Physical Button</strong>
-<span data-i18n="info.step4Text">• Press the button on the device to reset the countdown
-• Perform the same function with 'Physical Button' from the web interface</span>
-
-<strong data-i18n="info.step5Title">5. DMF Protocol</strong>
-<span data-i18n="info.step5Text">• Relay triggers when time expires (fail-safe mechanism)
-• Final email retries until internet access is achieved
-• Automatic switch to open WiFi networks (depending on settings)</span>
+                <div class="section-title" data-i18n="info.quickStart">Quick Start</div>
+                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
+                    <div style="margin-bottom:12px;">
+                        <strong data-i18n="info.step1Title">1. Set Timer Duration</strong><br>
+                        <span data-i18n="info.step1Text" style="color:#999;">Go to Alarm Settings → Choose time unit (minutes/hours/days) → Set total duration (1-60) → Set number of alarms (0-10) → Save</span>
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <strong data-i18n="info.step2Title">2. Configure Email</strong><br>
+                        <span data-i18n="info.step2Text" style="color:#999;">Go to Mail Settings → Enter SMTP server (ProtonMail or Gmail) → Add recipients → Customize warning/final message → Upload attachments (optional) → Test → Save</span>
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <strong data-i18n="info.step3Title">3. Setup WiFi</strong><br>
+                        <span data-i18n="info.step3Text" style="color:#999;">Go to Connection Settings → Configure Access Point mode → Add primary WiFi network → Add backup WiFi (optional) → Enable emergency open networks (optional) → Save</span>
+                    </div>
+                    <div style="margin-bottom:12px;">
+                        <strong data-i18n="info.step4Title">4. Start Timer</strong><br>
+                        <span data-i18n="info.step4Text" style="color:#999;">Click Start button → Timer begins countdown → Alarms trigger at scheduled intervals → Final relay triggers when time expires</span>
+                    </div>
                 </div>
 
-                <div class="section-title" data-i18n="info.securityTitle">Security Notes</div>
-                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;" data-i18n="info.securityText">
-                    • All sensitive settings (mail, WiFi, attachments) are protected by browser password
-                    • Session duration is 30 minutes; automatically requests re-login
-                    • Factory Reset permanently deletes all settings and files
-                    • Mail connections are encrypted with TLS/SSL
+                <div class="section-title" data-i18n="info.featuresTitle">Key Features</div>
+                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
+                    <div style="margin-bottom:8px;">
+                        <strong data-i18n="info.feature1">→ Virtual Button:</strong> <span data-i18n="info.feature1Text" style="color:#999;">Reset timer remotely via web interface or custom API endpoint</span>
+                    </div>
+                    <div style="margin-bottom:8px;">
+                        <strong data-i18n="info.feature2">→ Custom API:</strong> <span data-i18n="info.feature2Text" style="color:#999;">Create custom HTTP endpoint for home automation (Home Assistant, Node-RED)</span>
+                    </div>
+                    <div style="margin-bottom:8px;">
+                        <strong data-i18n="info.feature3">→ Emergency WiFi:</strong> <span data-i18n="info.feature3Text" style="color:#999;">Automatically connects to open networks if primary/backup WiFi fails</span>
+                    </div>
+                    <div style="margin-bottom:8px;">
+                        <strong data-i18n="info.feature4">→ Email Attachments:</strong> <span data-i18n="info.feature4Text" style="color:#999;">Attach up to 5 files (500KB each) to warning or final emails</span>
+                    </div>
+                    <div style="margin-bottom:8px;">
+                        <strong data-i18n="info.feature5">→ Multi-language:</strong> <span data-i18n="info.feature5Text" style="color:#999;">Interface available in English, German, and Turkish</span>
+                    </div>
+                </div>
+
+                <div class="section-title" data-i18n="info.apiTitle">Custom API Setup</div>
+                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
+                    <span data-i18n="info.apiText1">Go to Connection Settings → Custom API Endpoint → Enable → Set endpoint name (e.g., "trigger") → Optional: Enable token authentication → Save</span><br><br>
+                    <span data-i18n="info.apiText2">Example usage:</span>
+                    <div style="background:#0a0a0a; border:1px solid #333; padding:8px; margin-top:8px; font-family:monospace; font-size:0.8em; color:#fff;">
+                        curl -X POST http://192.168.1.100/api/trigger
+                    </div>
+                </div>
+
+                <div class="section-title" data-i18n="info.securityTitle">Security & Privacy</div>
+                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
+                    <div style="margin-bottom:6px;" data-i18n="info.security1">• All data stored locally on device (no cloud)</div>
+                    <div style="margin-bottom:6px;" data-i18n="info.security2">• Email connections encrypted with TLS/SSL</div>
+                    <div style="margin-bottom:6px;" data-i18n="info.security3">• Optional token authentication for API</div>
+                    <div style="margin-bottom:6px;" data-i18n="info.security4">• Factory reset deletes all settings permanently</div>
                 </div>
 
                 <div class="section-title" data-i18n="info.technicalTitle">Technical Specifications</div>
-                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;" data-i18n="info.technicalText">
-                    • Processor: ESP32-C6 (RISC-V, WiFi 6 support)
-                    • Memory: LittleFS file system
-                    • Connectivity: Dual WiFi AP+STA mode
-                    • Power: USB-C (5V)
-                    • Output: Relay control pin
+                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
+                    <div style="margin-bottom:6px;" data-i18n="info.tech1">• Processor: ESP32-C6 (RISC-V, WiFi 6)</div>
+                    <div style="margin-bottom:6px;" data-i18n="info.tech2">• Storage: LittleFS filesystem</div>
+                    <div style="margin-bottom:6px;" data-i18n="info.tech3">• WiFi: Dual mode (AP + STA)</div>
+                    <div style="margin-bottom:6px;" data-i18n="info.tech4">• Power: USB-C 5V</div>
+                    <div style="margin-bottom:6px;" data-i18n="info.tech5">• Output: Relay control</div>
                 </div>
 
-                <div class="section-title" data-i18n="info.supportTitle">Support and Documentation</div>
-                <div style="font-size:0.9em; line-height:1.8; color:#ccc; margin-bottom:20px;">
-                    <span data-i18n="info.supportText">For detailed user manual, example scenarios and updates:</span><br>
-                    <a href="https://smartkraft.ch/DMF" target="_blank" style="color:#0f0; text-decoration:none; border:1px solid #0f0; padding:8px 16px; display:inline-block; margin-top:12px; text-transform:uppercase; letter-spacing:1px;" data-i18n="info.supportLink">SmartKraft.ch/DMF</a>
+                <div style="border-top:1px solid #333; padding-top:20px; margin-top:30px; text-align:center;">
+                    <div style="margin-bottom:8px; font-size:0.9em;" data-i18n="info.supportTitle">Support and Documentation</div>
+                    <div style="margin-bottom:12px; font-size:0.85em; color:#888;" data-i18n="info.supportText">For detailed user manual, example scenarios and updates:</div>
+                    <a href="https://smartkraft.ch/dmf" target="_blank" style="display:inline-block; padding:8px 20px; background:#fff; color:#000; border:1px solid #fff; border-radius:4px; text-decoration:none; font-weight:500; font-size:0.9em; transition:all 0.3s;">
+                        SmartKraft.ch/DMF
+                    </a>
                 </div>
 
-                <div style="border-top:1px solid #333; padding-top:16px; margin-top:30px; text-align:center; font-size:0.75em; color:#666;" data-i18n="info.footer">
-                    SmartKraft DMF v1.0 • Open Source Hardware/Software
-                    © 2025 SmartKraft Systems
+                <div style="border-top:1px solid #333; padding-top:16px; margin-top:30px; text-align:center; font-size:0.75em; color:#666;">
+                    <div data-i18n="info.footer">SmartKraft DMF v1.0 • Open Source Hardware/Software</div>
+                    <div style="margin-top:4px;">© 2025 SmartKraft Systems</div>
                 </div>
             </div>
         </div>
