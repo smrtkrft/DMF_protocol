@@ -8,18 +8,49 @@ void CountdownScheduler::begin(ConfigStore *storePtr) {
 void CountdownScheduler::configure(const TimerSettings &settings) {
     currentSettings = settings;
     
-    // If timer is active, preserve the current alarm index to prevent false triggers
-    uint8_t preservedAlarmIndex = runtime.nextAlarmIndex;
+    // Eski total duration ve elapsed time'ı hesapla (timer aktifse)
+    uint32_t oldElapsed = 0;
+    uint32_t oldTotal = totalDurationSeconds(); // Henüz eski settings geçerli
+    bool wasActive = runtime.timerActive;
     
-    regenerateSchedule();
-    
-    // Restore alarm index if timer was running
-    if (runtime.timerActive) {
-        runtime.nextAlarmIndex = min(preservedAlarmIndex, alarmCount);
-        // Recalculate deadline based on new settings but keep elapsed time
+    if (wasActive) {
         updateRemaining();
-        uint32_t elapsed = totalDurationSeconds() - runtime.remainingSeconds;
-        runtime.deadlineMillis = millis() + (uint64_t)runtime.remainingSeconds * 1000ULL;
+        oldElapsed = oldTotal - runtime.remainingSeconds;
+    }
+    
+    // Yeni schedule oluştur (artık currentSettings güncel)
+    regenerateSchedule();
+    uint32_t newTotal = totalDurationSeconds();
+    
+    if (wasActive) {
+        // Timer aktifse elapsed time'ı yeni total'e göre ayarla
+        if (oldElapsed >= newTotal) {
+            // Elapsed time yeni total'den büyükse, timer'ı resetle ama başlatma
+            // Kullanıcı "reset" butonuna basınca tekrar başlayacak
+            runtime.timerActive = false;
+            runtime.paused = false;
+            runtime.finalTriggered = false;
+            runtime.nextAlarmIndex = 0;
+            runtime.remainingSeconds = newTotal;
+            runtime.deadlineMillis = 0;
+        } else {
+            // Elapsed time mantıklıysa, kalan süreyi güncelle
+            runtime.remainingSeconds = newTotal - oldElapsed;
+            runtime.deadlineMillis = millis() + (uint64_t)runtime.remainingSeconds * 1000ULL;
+            
+            // Alarm index'i yeni alarm sayısına göre ayarla
+            // Eğer elapsed time bir alarm noktasını geçtiyse, sonraki alarma atla
+            runtime.nextAlarmIndex = 0;
+            for (uint8_t i = 0; i < alarmCount; ++i) {
+                if (oldElapsed >= alarmMoments[i]) {
+                    runtime.nextAlarmIndex = i + 1;
+                }
+            }
+            runtime.nextAlarmIndex = min(runtime.nextAlarmIndex, alarmCount);
+        }
+    } else {
+        // Timer aktif değilse, sadece total süreyi güncelle
+        runtime.remainingSeconds = newTotal;
     }
     
     store->saveTimerSettings(settings);

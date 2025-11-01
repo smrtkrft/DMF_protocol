@@ -3,7 +3,6 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <WiFi.h>
-#include <esp_wifi.h>  // WiFi güç yönetimi için
 
 // i18n language files
 #include "i18n_en.h"
@@ -18,24 +17,20 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartKraft DMF Control Panel</title>
-    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;background:#000;color:#fff;line-height:1.4;font-size:14px}a{color:#fff}.container{max-width:820px;margin:0 auto;padding:16px}.header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #333}.header h1{font-size:1.8em;font-weight:normal;letter-spacing:2px}.device-id{color:#777;font-size:.9em;margin-top:4px}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;border:1px solid #333;padding:12px}.status-card{text-align:center}.status-label{color:#666;font-size:.8em;margin-bottom:4px;text-transform:uppercase}.status-value{font-size:1.2em;color:#fff;min-height:1.2em}.timer-readout{text-align:center;border:1px solid #333;padding:18px;margin-bottom:16px}.timer-readout .value{font-size:2.6em;letter-spacing:2px}.timer-readout .label{color:#777;margin-top:6px;font-size:.85em}.button-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}button{background:transparent;border:1px solid #555;color:#fff;padding:10px 18px;font-family:monospace;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:background .2s}button:hover{background:#222}.btn-danger{border-color:#f00;color:#f00}.btn-danger:hover{background:#f00;color:#000}.btn-success{border-color:#fff;color:#fff}.btn-success:hover{background:#fff;color:#000}.btn-warning{border-color:#ff0;color:#ff0}.btn-warning:hover{background:#ff0;color:#000}.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #333;margin-bottom:8px}.tab{flex:1;min-width:140px;border:1px solid #333;border-bottom:none;background:#000;color:#666;padding:10px;cursor:pointer;text-align:center;font-size:.9em}.tab+.tab{margin-left:4px}.tab.active{color:#fff;border-color:#fff}.tab-content{border:1px solid #333;padding:20px}.tab-pane{display:none}.tab-pane.active{display:block}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}label{font-size:.85em;color:#ccc;text-transform:uppercase;letter-spacing:1px}input[type="text"],input[type="number"],input[type="password"],input[type="email"],textarea,select{width:100%;padding:10px;background:#000;border:1px solid #333;color:#fff;font-family:monospace}textarea{resize:vertical;min-height:100px}.checkbox{display:flex;align-items:center;gap:8px;font-size:.9em;color:#ccc}.section-title{border-bottom:1px solid #333;padding-bottom:6px;margin-top:8px;margin-bottom:12px;font-size:1em;letter-spacing:1px;text-transform:uppercase}.attachments{border:1px solid #333;padding:12px;margin-bottom:16px}.attachments table{width:100%;border-collapse:collapse;font-size:.85em}.attachments th,.attachments td{border-bottom:1px solid #222;padding:6px;text-align:left}.attachments th{color:#888;text-transform:uppercase;letter-spacing:1px}.file-upload{border:1px dashed #555;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer}.file-upload:hover{background:#111}.alert{display:none;margin-bottom:12px;padding:10px;border:1px solid #333;font-size:.85em}.alert.success{border-color:#fff;color:#fff}.alert.error{border-color:#f00;color:#f00}.list{border:1px solid #333;padding:10px;max-height:180px;overflow-y:auto;font-size:.85em}.list-item{border-bottom:1px solid #222;padding:6px 0;display:flex;justify-content:space-between;align-items:center}.list-item:last-child{border-bottom:none}.badge{display:inline-block;padding:2px 6px;font-size:.75em;border:1px solid #333;margin-left:6px}.connection-indicator{position:fixed;top:12px;right:12px;border:1px solid #333;padding:6px 10px;font-size:.8em;z-index:20;background:#000;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.connection-indicator.online{border-color:#fff;color:#fff}.connection-indicator.offline{border-color:#f00;color:#f00}.lang-selector{position:fixed;top:12px;left:12px;z-index:21;background:#000;border:1px solid #333;padding:6px;display:flex;gap:4px}.lang-btn{background:transparent;border:1px solid #555;color:#888;padding:4px 10px;font-family:monospace;cursor:pointer;font-size:.75em;letter-spacing:1px;transition:all .2s;min-width:40px}.lang-btn:hover{background:#222;border-color:#fff;color:#fff}.lang-btn.active{border-color:#fff;color:#fff;font-weight:bold}.accordion{border:1px solid #333;margin-bottom:12px}.accordion-header{background:#111;border-bottom:1px solid #333;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;letter-spacing:1px;font-size:.9em;transition:background .2s}.accordion-header:hover{background:#1a1a1a}.accordion-header.active{background:#0a0a0a;color:#fff}.accordion-toggle{font-size:1.2em;transition:transform .3s}.accordion-header.active .accordion-toggle{transform:rotate(180deg);color:#fff}.accordion-content{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#0a0a0a}.accordion-content.active{max-height:2000px;padding:16px;border-top:1px solid #fff}.preset-btn{display:inline-block;padding:8px 16px;margin:4px;border:1px solid #555;background:#111;color:#ccc;cursor:pointer;text-align:center;font-size:.85em;transition:all .2s}.preset-btn:hover{background:#222;border-color:#fff}.preset-btn.active{border-color:#fff;background:#fff;color:#000}@media (max-width:600px){.lang-selector{top:8px;left:8px;font-size:.7em;padding:4px;gap:2px}.lang-btn{padding:2px 6px;min-width:32px;font-size:.65em}.connection-indicator{top:48px;right:8px;left:8px;max-width:none;font-size:.7em;padding:4px 8px}.tabs{flex-direction:column}.tab+.tab{margin-left:0;margin-top:4px}.button-bar{flex-wrap:nowrap!important;gap:4px!important}.button-bar>div{gap:4px!important;min-width:0}.button-bar button{padding:8px 10px!important;font-size:.7em!important;min-width:0;letter-spacing:0}}</style>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;background:#000;color:#fff;line-height:1.4;font-size:14px}a{color:#0f0}.container{max-width:820px;margin:0 auto;padding:16px}.header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #333}.header h1{font-size:1.8em;font-weight:normal;letter-spacing:2px}.device-id{color:#777;font-size:.9em;margin-top:4px}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;border:1px solid #333;padding:12px}.status-card{text-align:center}.status-label{color:#666;font-size:.8em;margin-bottom:4px;text-transform:uppercase}.status-value{font-size:1.2em;color:#fff;min-height:1.2em}.timer-readout{text-align:center;border:1px solid #333;padding:18px;margin-bottom:16px}.timer-readout .value{font-size:2.6em;letter-spacing:2px}.timer-readout .label{color:#777;margin-top:6px;font-size:.85em}.button-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}button{background:transparent;border:1px solid #555;color:#fff;padding:10px 18px;font-family:monospace;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:background .2s}button:hover{background:#222}.btn-danger{border-color:#f00;color:#f00}.btn-danger:hover{background:#f00;color:#000}.btn-success{border-color:#0f0;color:#0f0}.btn-success:hover{background:#0f0;color:#000}.btn-warning{border-color:#ff0;color:#ff0}.btn-warning:hover{background:#ff0;color:#000}.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #333;margin-bottom:8px}.tab{flex:1;min-width:140px;border:1px solid #333;border-bottom:none;background:#000;color:#666;padding:10px;cursor:pointer;text-align:center;font-size:.9em}.tab+.tab{margin-left:4px}.tab.active{color:#fff;border-color:#fff}.tab-content{border:1px solid #333;padding:20px}.tab-pane{display:none}.tab-pane.active{display:block}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}label{font-size:.85em;color:#ccc;text-transform:uppercase;letter-spacing:1px}input[type="text"],input[type="number"],input[type="password"],input[type="email"],textarea,select{width:100%;padding:10px;background:#000;border:1px solid #333;color:#fff;font-family:monospace}textarea{resize:vertical;min-height:100px}.checkbox{display:flex;align-items:center;gap:8px;font-size:.9em;color:#ccc}.section-title{border-bottom:1px solid #333;padding-bottom:6px;margin-top:8px;margin-bottom:12px;font-size:1em;letter-spacing:1px;text-transform:uppercase}.attachments{border:1px solid #333;padding:12px;margin-bottom:16px}.attachments table{width:100%;border-collapse:collapse;font-size:.85em}.attachments th,.attachments td{border-bottom:1px solid #222;padding:6px;text-align:left}.attachments th{color:#888;text-transform:uppercase;letter-spacing:1px}.file-upload{border:1px dashed #555;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer}.file-upload:hover{background:#111}.alert{display:none;margin-bottom:12px;padding:10px;border:1px solid #333;font-size:.85em}.alert.success{border-color:#0f0;color:#0f0}.alert.error{border-color:#f00;color:#f00}.list{border:1px solid #333;padding:10px;max-height:180px;overflow-y:auto;font-size:.85em}.list-item{border-bottom:1px solid #222;padding:6px 0;display:flex;justify-content:space-between;align-items:center}.list-item:last-child{border-bottom:none}.badge{display:inline-block;padding:2px 6px;font-size:.75em;border:1px solid #333;margin-left:6px}.connection-indicator{position:fixed;top:12px;right:12px;border:1px solid #333;padding:6px 10px;font-size:.8em;z-index:20;background:#000;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.connection-indicator.online{border-color:#0f0;color:#0f0}.connection-indicator.offline{border-color:#f00;color:#f00}.lang-selector{position:fixed;top:12px;left:12px;z-index:21;background:#000;border:1px solid #333;padding:6px;display:flex;gap:4px}.lang-btn{background:transparent;border:1px solid #555;color:#888;padding:4px 10px;font-family:monospace;cursor:pointer;font-size:.75em;letter-spacing:1px;transition:all .2s;min-width:40px}.lang-btn:hover{background:#222;border-color:#0f0;color:#0f0}.lang-btn.active{border-color:#0f0;color:#0f0;font-weight:bold}.accordion{border:1px solid #333;margin-bottom:12px}.accordion-header{background:#111;border-bottom:1px solid #333;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;letter-spacing:1px;font-size:.9em;transition:background .2s}.accordion-header:hover{background:#1a1a1a}.accordion-header.active{background:#0a0a0a;color:#0f0}.accordion-toggle{font-size:1.2em;transition:transform .3s}.accordion-header.active .accordion-toggle{transform:rotate(180deg);color:#0f0}.accordion-content{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#0a0a0a}.accordion-content.active{max-height:2000px;padding:16px;border-top:1px solid #0f0}.preset-btn{display:inline-block;padding:8px 16px;margin:4px;border:1px solid #555;background:#111;color:#ccc;cursor:pointer;text-align:center;font-size:.85em;transition:all .2s}.preset-btn:hover{background:#222;border-color:#0f0}.preset-btn.active{border-color:#0f0;background:#0f0;color:#000}@media (max-width:600px){.lang-selector{top:8px;left:8px;font-size:.7em;padding:4px;gap:2px}.lang-btn{padding:2px 6px;min-width:32px;font-size:.65em}.connection-indicator{top:48px;right:8px;left:8px;max-width:none;font-size:.7em;padding:4px 8px}.tabs{flex-direction:column}.tab+.tab{margin-left:0;margin-top:4px}button{width:100%}}</style>
 </head>
 <body>
     <div id="mainApp" style="display:block;">
+    <div class="lang-selector">
+        <button class="lang-btn active" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="de">DE</button>
+        <button class="lang-btn" data-lang="tr">TR</button>
+    </div>
+    <div id="connectionStatus" class="connection-indicator offline" data-i18n="status.connecting">Checking connection...</div>
     <div class="container">
         <div class="header">
             <h1 data-i18n="header.title">SMARTKRAFT DMF</h1>
             <div class="device-id"><span data-i18n="header.deviceId">Device ID</span>: <span id="deviceId">-</span></div>
-        </div>
-
-        <!-- Dil Seçimi ve Durum Bilgileri -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px;">
-            <div class="lang-selector" style="position:static; border:1px solid #333; padding:6px; display:flex; gap:4px;">
-                <button class="lang-btn active" data-lang="en">EN</button>
-                <button class="lang-btn" data-lang="de">DE</button>
-                <button class="lang-btn" data-lang="tr">TR</button>
-            </div>
-            <div id="connectionStatus" class="connection-indicator offline" style="position:static; flex:1; text-align:right;" data-i18n="status.connecting">Checking connection...</div>
         </div>
 
         <div class="status-grid">
@@ -60,16 +55,14 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div class="timer-readout">
             <div class="value" id="timerDisplay">00:00:00</div>
             <div class="label" data-i18n="status.countdown">Countdown</div>
-            
-            <div class="button-bar" style="justify-content:space-between; gap:6px; margin-top:16px; margin-bottom:0;">
-                <div style="display:flex; gap:6px; flex:1;">
-                    <button id="btnStart" style="border:1px solid #fff; color:#fff; background:#000; flex-shrink:0;" onclick="startTimer()" data-i18n="buttons.start">Start</button>
-                    <button id="btnPause" style="display:none; border:1px solid #fff; color:#fff; background:#000; flex-shrink:0;" onclick="pauseTimer()" data-i18n="buttons.pause">Pause</button>
-                    <button id="btnResume" style="display:none; border:1px solid #fff; color:#fff; background:#000; flex-shrink:0;" onclick="resumeTimer()" data-i18n="buttons.resume">Resume</button>
-                    <button id="btnReset" style="border:1px solid #fff; color:#fff; background:#000; flex-shrink:0;" onclick="resetTimer()" data-i18n="buttons.reset">Reset</button>
-                </div>
-                <button id="btnPhysical" style="border:1px solid #fff; color:#fff; background:#000; flex-shrink:0; white-space:nowrap;" onclick="virtualButton()" data-i18n="buttons.virtualButton">Virtual Button</button>
-            </div>
+        </div>
+
+        <div class="button-bar">
+            <button id="btnStart" class="btn-success" onclick="startTimer()" data-i18n="buttons.start">Start</button>
+            <button id="btnPause" class="btn-warning" onclick="pauseTimer()" style="display:none;" data-i18n="buttons.pause">Pause</button>
+            <button id="btnResume" class="btn-success" onclick="resumeTimer()" style="display:none;" data-i18n="buttons.resume">Resume</button>
+            <button id="btnReset" class="btn-danger" onclick="resetTimer()" data-i18n="buttons.reset">Reset</button>
+            <button id="btnPhysical" class="btn-danger" onclick="virtualButton()" data-i18n="buttons.physicalButton">Physical Button</button>
         </div>
 
         <div class="tabs">
@@ -112,11 +105,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
                 <!-- MAİL ENTEGRASYONU -->
                 <div class="accordion">
-                    <div class="accordion-header" onclick="toggleAccordion(this)">
+                    <div class="accordion-header active" onclick="toggleAccordion(this)">
                         <span data-i18n="mail.sectionSMTP">SMTP Settings</span>
                         <span class="accordion-toggle">v</span>
                     </div>
-                    <div class="accordion-content">
+                    <div class="accordion-content active">
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
                             <div class="preset-btn active" id="presetProton" onclick="selectMailPreset('proton')">
                                 <div style="font-weight:bold; margin-bottom:4px;">Proton Mail</div>
@@ -245,165 +238,77 @@ Timer completed. Urgent action required.</textarea>
 
             <div id="wifiTab" class="tab-pane">
                 <div id="wifiAlert" class="alert"></div>
-                
-                <!-- 🔌 CUSTOM API ENDPOINT SETTINGS -->
-                <div class="accordion">
-                    <div class="accordion-header" onclick="toggleAccordion(this)">
-                        <span data-i18n="api.sectionAPI">Custom API Endpoint</span>
-                        <span class="accordion-toggle">▼</span>
-                    </div>
-                    <div class="accordion-content">
-                        <div class="form-group checkbox" style="margin-bottom:16px;">
-                            <input type="checkbox" id="apiEnabled">
-                            <label for="apiEnabled" data-i18n="api.enabled">Enable Custom API Endpoint</label>
-                        </div>
-                        
+                <div class="section-title" data-i18n="wifi.sectionAP">Access Point Settings</div>
+                <div class="form-group checkbox" style="margin-bottom:24px;">
+                    <input type="checkbox" id="apModeEnabled" checked>
+                    <label for="apModeEnabled" data-i18n="wifi.modeAP">Access Point (AP) Mode</label>
+                </div>
+                <div style="border-top:1px solid #333; padding-top:18px; margin-top:4px;">
+                    <div class="section-title" style="margin-top:0;" data-i18n="wifi.sectionSTA">Station Mode Settings</div>
+                    <div class="form-grid">
                         <div class="form-group">
-                            <label data-i18n="api.endpoint">Custom Endpoint Path</label>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <span style="color:#888; font-family:monospace; white-space:nowrap;">http://[IP]/api/</span>
-                                <input type="text" id="apiEndpoint" data-i18n="api.endpointPlaceholder" placeholder="trigger" 
-                                       oninput="updateAPIPreview()" style="flex:1;">
-                            </div>
+                            <label data-i18n="wifi.staSSID">Target Network (SSID)</label>
+                            <input type="text" id="wifiPrimarySsid" data-i18n="wifi.staSSIDPlaceholder" placeholder="Your WiFi network name">
                         </div>
-                        
                         <div class="form-group">
-                            <label data-i18n="api.preview">Preview URL</label>
-                            <div id="apiPreview" style="padding:12px; background:#000; border:1px solid #fff; color:#fff; font-family:monospace; font-size:0.85em; word-break:break-all;">
-                                http://192.168.1.100/api/trigger
-                            </div>
+                            <label data-i18n="wifi.staPassword">Password</label>
+                            <input type="password" id="wifiPrimaryPassword" data-i18n="wifi.staPasswordPlaceholder" placeholder="Network password">
                         </div>
-                        
-                        <div class="form-group checkbox" style="margin-bottom:16px;">
-                            <input type="checkbox" id="apiRequireToken" onchange="toggleAPIToken()">
-                            <label for="apiRequireToken" data-i18n="api.requireToken">Require Authorization Token</label>
+                        <div class="form-group checkbox">
+                            <input type="checkbox" id="primaryStaticEnabled">
+                            <label for="primaryStaticEnabled" data-i18n="wifi.staDHCP">Use DHCP (Automatic IP)</label>
                         </div>
-                        
-                        <div class="form-group" id="apiTokenGroup" style="display:none;">
-                            <label data-i18n="api.token">Authorization Token</label>
-                            <input type="text" id="apiToken" data-i18n="api.tokenPlaceholder" placeholder="your-secret-token">
-                            <div style="font-size:0.7em; color:#666; font-style:italic; margin-top:4px;">
-                                <span data-i18n="api.tokenHelp">Include in Authorization header: curl -H "Authorization: your-token" http://IP/api/endpoint</span>
-                            </div>
+                        <div class="form-group">
+                            <label data-i18n="wifi.staIP">IP Address</label>
+                            <input type="text" id="primaryIP" placeholder="192.168.1.100">
                         </div>
-                        
-                        <button onclick="saveAPISettings()" data-i18n="buttons.save">Save</button>
-                        
-                        <div style="margin-top:16px; padding:12px; border:1px solid #333; background:#0a0a0a;">
-                            <div style="font-size:0.85em; color:#fff; margin-bottom:8px; font-weight:bold;" data-i18n="api.examples">Usage Examples:</div>
-                            <div style="font-size:0.75em; color:#888; font-family:monospace; line-height:1.6;">
-                                <div style="margin-bottom:8px;">
-                                    <div style="color:#ccc;" data-i18n="api.exampleCurl">cURL:</div>
-                                    <code id="apiExampleCurl" style="color:#fff;">curl -X POST http://192.168.1.100/api/trigger</code>
-                                </div>
-                                <div style="margin-bottom:8px;">
-                                    <div style="color:#ccc;" data-i18n="api.exampleHA">Home Assistant:</div>
-                                    <code id="apiExampleHA" style="color:#fff;">rest_command:<br>  &nbsp;trigger_dmf:<br>  &nbsp;&nbsp;url: "http://192.168.1.100/api/trigger"<br>  &nbsp;&nbsp;method: POST</code>
-                                </div>
-                                <div>
-                                    <div style="color:#ccc;" data-i18n="api.exampleNode">Node-RED:</div>
-                                    <code id="apiExampleNode" style="color:#fff;">[http request] → POST → http://192.168.1.100/api/trigger</code>
-                                </div>
-                            </div>
+                        <div class="form-group">
+                            <label data-i18n="wifi.staGateway">Gateway</label>
+                            <input type="text" id="primaryGateway" placeholder="192.168.1.1">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="wifi.staSubnet">Subnet Mask</label>
+                            <input type="text" id="primarySubnet" placeholder="255.255.255.0">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="wifi.staDNS">Primary DNS</label>
+                            <input type="text" id="primaryDNS" placeholder="192.168.1.1">
                         </div>
                     </div>
                 </div>
-                
-                <!-- 1️⃣ ACCESS POINT (AP) ACCORDION -->
-                <div class="accordion">
-                    <div class="accordion-header" onclick="toggleAccordion(this)">
-                        <span data-i18n="wifi.sectionAP">Access Point Settings</span>
-                        <span class="accordion-toggle">▼</span>
-                    </div>
-                    <div class="accordion-content">
-                        <div class="form-group checkbox" style="margin-bottom:16px;">
-                            <input type="checkbox" id="apModeEnabled" checked>
-                            <label for="apModeEnabled" data-i18n="wifi.modeAP">Access Point (AP) Mode</label>
+                <div style="border-top:1px dashed #333; margin:28px 0 0; padding-top:18px;">
+                    <div class="section-title" style="margin-top:0;" data-i18n="wifi.backupNetwork">Backup WiFi Network</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label data-i18n="wifi.staSSID">Target Network (SSID)</label>
+                            <input type="text" id="wifiSecondarySsid" data-i18n="wifi.staSSIDPlaceholder" placeholder="Your WiFi network name">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="wifi.staPassword">Password</label>
+                            <input type="password" id="wifiSecondaryPassword" data-i18n="wifi.staPasswordPlaceholder" placeholder="Network password">
+                        </div>
+                        <div class="form-group checkbox">
+                            <input type="checkbox" id="secondaryStaticEnabled">
+                            <label for="secondaryStaticEnabled" data-i18n="wifi.staDHCP">Use DHCP (Automatic IP)</label>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="wifi.staIP">IP Address</label>
+                            <input type="text" id="secondaryIP" placeholder="192.168.1.101">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="wifi.staGateway">Gateway</label>
+                            <input type="text" id="secondaryGateway" placeholder="192.168.1.1">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="wifi.staSubnet">Subnet Mask</label>
+                            <input type="text" id="secondarySubnet" placeholder="255.255.255.0">
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="wifi.staDNS">Primary DNS</label>
+                            <input type="text" id="secondaryDNS" placeholder="192.168.1.1">
                         </div>
                     </div>
                 </div>
-                
-                <!-- 2️⃣ PRIMARY WIFI (SSID1) ACCORDION -->
-                <div class="accordion" style="margin-top:16px;">
-                    <div class="accordion-header" onclick="toggleAccordion(this)">
-                        <span data-i18n="wifi.sectionSTA">Primary WiFi Network (SSID 1)</span>
-                        <span class="accordion-toggle">▼</span>
-                    </div>
-                    <div class="accordion-content">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label data-i18n="wifi.staSSID">Target Network (SSID)</label>
-                                <input type="text" id="wifiPrimarySsid" data-i18n="wifi.staSSIDPlaceholder" placeholder="Your WiFi network name">
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staPassword">Password</label>
-                                <input type="password" id="wifiPrimaryPassword" data-i18n="wifi.staPasswordPlaceholder" placeholder="Network password">
-                            </div>
-                            <div class="form-group checkbox">
-                                <input type="checkbox" id="primaryStaticEnabled">
-                                <label for="primaryStaticEnabled" data-i18n="wifi.staDHCP">Use DHCP (Automatic IP)</label>
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staIP">IP Address</label>
-                                <input type="text" id="primaryIP" placeholder="192.168.1.100">
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staGateway">Gateway</label>
-                                <input type="text" id="primaryGateway" placeholder="192.168.1.1">
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staSubnet">Subnet Mask</label>
-                                <input type="text" id="primarySubnet" placeholder="255.255.255.0">
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staDNS">Primary DNS</label>
-                                <input type="text" id="primaryDNS" placeholder="192.168.1.1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 3️⃣ BACKUP WIFI (SSID2) ACCORDION -->
-                <div class="accordion" style="margin-top:16px;">
-                    <div class="accordion-header" onclick="toggleAccordion(this)">
-                        <span>Backup WiFi Network (SSID 2)</span>
-                        <span class="accordion-toggle">▼</span>
-                    </div>
-                    <div class="accordion-content">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label data-i18n="wifi.staSSID">Target Network (SSID)</label>
-                                <input type="text" id="wifiSecondarySsid" data-i18n="wifi.staSSIDPlaceholder" placeholder="Your WiFi network name">
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staPassword">Password</label>
-                                <input type="password" id="wifiSecondaryPassword" data-i18n="wifi.staPasswordPlaceholder" placeholder="Network password">
-                            </div>
-                            <div class="form-group checkbox">
-                                <input type="checkbox" id="secondaryStaticEnabled">
-                                <label for="secondaryStaticEnabled" data-i18n="wifi.staDHCP">Use DHCP (Automatic IP)</label>
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staIP">IP Address</label>
-                                <input type="text" id="secondaryIP" placeholder="192.168.1.101">
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staGateway">Gateway</label>
-                                <input type="text" id="secondaryGateway" placeholder="192.168.1.1">
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staSubnet">Subnet Mask</label>
-                                <input type="text" id="secondarySubnet" placeholder="255.255.255.0">
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="wifi.staDNS">Primary DNS</label>
-                                <input type="text" id="secondaryDNS" placeholder="192.168.1.1">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 4️⃣ ACİL DURUM BAĞLANTI (Normal - Accordion DEĞİL) -->
                 <div style="border-top:1px solid #333; margin:28px 0 0; padding-top:24px;">
                     <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
                         <div style="width:28px; height:28px; border:2px solid #ffa500; border-radius:4px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:18px; color:#ffa500; flex-shrink:0;">!</div>
@@ -438,92 +343,71 @@ Timer completed. Urgent action required.</textarea>
                     <button class="btn-danger" onclick="factoryReset()" data-i18n="buttons.factoryReset">Factory Reset</button>
                     <button onclick="rebootDevice()" data-i18n="buttons.reboot">Reboot</button>
                 </div>
-                <div class="section-title" style="margin-top:34px;">Bulunan Ağlar</div>
+                <div class="section-title" style="margin-top:34px;" data-i18n="wifi.foundNetworks">Bulunan Ağlar</div>
                 <div class="list" id="wifiScanResults">-</div>
             </div>
 
             <div id="infoTab" class="tab-pane">
-                <div class="section-title" style="margin-top:0;" data-i18n="info.title">SmartKraft DMF User Guide</div>
+                <div class="section-title" style="margin-top:0;" data-i18n="info.title">What is SmartKraft DMF?</div>
                 <div style="font-size:0.9em; line-height:1.6; color:#ccc; margin-bottom:20px;" data-i18n="info.description">
-                    SmartKraft DMF (Delayed Message Framework) is an intelligent countdown timer with automatic email delivery, emergency WiFi fallback, and relay control for critical timing scenarios.
+                    SmartKraft DMF (Delayed Message Framework) is an intelligent countdown and alarm device designed for critical timing and notification systems. It provides automatic email delivery, emergency connection management and relay control within the time you specify.
                 </div>
 
-                <div class="section-title" data-i18n="info.quickStart">Quick Start</div>
-                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
-                    <div style="margin-bottom:12px;">
-                        <strong data-i18n="info.step1Title">1. Set Timer Duration</strong><br>
-                        <span data-i18n="info.step1Text" style="color:#999;">Go to Alarm Settings → Choose time unit (minutes/hours/days) → Set total duration (1-60) → Set number of alarms (0-10) → Save</span>
-                    </div>
-                    <div style="margin-bottom:12px;">
-                        <strong data-i18n="info.step2Title">2. Configure Email</strong><br>
-                        <span data-i18n="info.step2Text" style="color:#999;">Go to Mail Settings → Enter SMTP server (ProtonMail or Gmail) → Add recipients → Customize warning/final message → Upload attachments (optional) → Test → Save</span>
-                    </div>
-                    <div style="margin-bottom:12px;">
-                        <strong data-i18n="info.step3Title">3. Setup WiFi</strong><br>
-                        <span data-i18n="info.step3Text" style="color:#999;">Go to Connection Settings → Configure Access Point mode → Add primary WiFi network → Add backup WiFi (optional) → Enable emergency open networks (optional) → Save</span>
-                    </div>
-                    <div style="margin-bottom:12px;">
-                        <strong data-i18n="info.step4Title">4. Start Timer</strong><br>
-                        <span data-i18n="info.step4Text" style="color:#999;">Click Start button → Timer begins countdown → Alarms trigger at scheduled intervals → Final relay triggers when time expires</span>
-                    </div>
+                <div class="section-title" data-i18n="info.howToUse">How to Use?</div>
+                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px; white-space:pre-line;">
+<strong data-i18n="info.step1Title">1. Alarm Settings</strong>
+<span data-i18n="info.step1Text">• Set countdown duration (days or hours)
+• Set alarm count (0-10)
+• Enable and start the timer</span>
+
+<strong data-i18n="info.step2Title">2. Mail Settings</strong>
+<span data-i18n="info.step2Text">• Enter SMTP server information (ProtonMail recommended)
+• Add email recipients (maximum 10)
+• Customize Warning and Final email content
+• Upload optional file attachments (maximum 5 files, 500KB limit per file)</span>
+
+<strong data-i18n="info.step3Title">3. Connection Settings</strong>
+<span data-i18n="info.step3Text">• Define your primary and backup WiFi networks
+• Configure static IP if needed
+• Consider allowing connection to unsecured networks for emergency
+• Set browser access password (minimum 6 characters)</span>
+
+<strong data-i18n="info.step4Title">4. Physical Button</strong>
+<span data-i18n="info.step4Text">• Press the button on the device to reset the countdown
+• Perform the same function with 'Physical Button' from the web interface</span>
+
+<strong data-i18n="info.step5Title">5. DMF Protocol</strong>
+<span data-i18n="info.step5Text">• Relay triggers when time expires (fail-safe mechanism)
+• Final email retries until internet access is achieved
+• Automatic switch to open WiFi networks (depending on settings)</span>
                 </div>
 
-                <div class="section-title" data-i18n="info.featuresTitle">Key Features</div>
-                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
-                    <div style="margin-bottom:8px;">
-                        <strong data-i18n="info.feature1">→ Virtual Button:</strong> <span data-i18n="info.feature1Text" style="color:#999;">Reset timer remotely via web interface or custom API endpoint</span>
-                    </div>
-                    <div style="margin-bottom:8px;">
-                        <strong data-i18n="info.feature2">→ Custom API:</strong> <span data-i18n="info.feature2Text" style="color:#999;">Create custom HTTP endpoint for home automation (Home Assistant, Node-RED)</span>
-                    </div>
-                    <div style="margin-bottom:8px;">
-                        <strong data-i18n="info.feature3">→ Emergency WiFi:</strong> <span data-i18n="info.feature3Text" style="color:#999;">Automatically connects to open networks if primary/backup WiFi fails</span>
-                    </div>
-                    <div style="margin-bottom:8px;">
-                        <strong data-i18n="info.feature4">→ Email Attachments:</strong> <span data-i18n="info.feature4Text" style="color:#999;">Attach up to 5 files (500KB each) to warning or final emails</span>
-                    </div>
-                    <div style="margin-bottom:8px;">
-                        <strong data-i18n="info.feature5">→ Multi-language:</strong> <span data-i18n="info.feature5Text" style="color:#999;">Interface available in English, German, and Turkish</span>
-                    </div>
-                </div>
-
-                <div class="section-title" data-i18n="info.apiTitle">Custom API Setup</div>
-                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
-                    <span data-i18n="info.apiText1">Go to Connection Settings → Custom API Endpoint → Enable → Set endpoint name (e.g., "trigger") → Optional: Enable token authentication → Save</span><br><br>
-                    <span data-i18n="info.apiText2">Example usage:</span>
-                    <div style="background:#0a0a0a; border:1px solid #333; padding:8px; margin-top:8px; font-family:monospace; font-size:0.8em; color:#fff;">
-                        curl -X POST http://192.168.1.100/api/trigger
-                    </div>
-                </div>
-
-                <div class="section-title" data-i18n="info.securityTitle">Security & Privacy</div>
-                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
-                    <div style="margin-bottom:6px;" data-i18n="info.security1">• All data stored locally on device (no cloud)</div>
-                    <div style="margin-bottom:6px;" data-i18n="info.security2">• Email connections encrypted with TLS/SSL</div>
-                    <div style="margin-bottom:6px;" data-i18n="info.security3">• Optional token authentication for API</div>
-                    <div style="margin-bottom:6px;" data-i18n="info.security4">• Factory reset deletes all settings permanently</div>
+                <div class="section-title" data-i18n="info.securityTitle">Security Notes</div>
+                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;" data-i18n="info.securityText">
+                    • All sensitive settings (mail, WiFi, attachments) are protected by browser password
+                    • Session duration is 30 minutes; automatically requests re-login
+                    • Factory Reset permanently deletes all settings and files
+                    • Mail connections are encrypted with TLS/SSL
                 </div>
 
                 <div class="section-title" data-i18n="info.technicalTitle">Technical Specifications</div>
-                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
-                    <div style="margin-bottom:6px;" data-i18n="info.tech1">• Processor: ESP32-C6 (RISC-V, WiFi 6)</div>
-                    <div style="margin-bottom:6px;" data-i18n="info.tech2">• Storage: LittleFS filesystem</div>
-                    <div style="margin-bottom:6px;" data-i18n="info.tech3">• WiFi: Dual mode (AP + STA)</div>
-                    <div style="margin-bottom:6px;" data-i18n="info.tech4">• Power: USB-C 5V</div>
-                    <div style="margin-bottom:6px;" data-i18n="info.tech5">• Output: Relay control</div>
+                <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;" data-i18n="info.technicalText">
+                    • Processor: ESP32-C6 (RISC-V, WiFi 6 support)
+                    • Memory: LittleFS file system
+                    • Connectivity: Dual WiFi AP+STA mode
+                    • Power: USB-C (5V)
+                    • Output: Relay control pin
                 </div>
 
-                <div style="border-top:1px solid #333; padding-top:20px; margin-top:30px; text-align:center;">
-                    <div style="margin-bottom:8px; font-size:0.9em;" data-i18n="info.supportTitle">Support and Documentation</div>
-                    <div style="margin-bottom:12px; font-size:0.85em; color:#888;" data-i18n="info.supportText">For detailed user manual, example scenarios and updates:</div>
-                    <a href="https://smartkraft.ch/dmf" target="_blank" style="display:inline-block; padding:8px 20px; background:#fff; color:#000; border:1px solid #fff; border-radius:4px; text-decoration:none; font-weight:500; font-size:0.9em; transition:all 0.3s;">
-                        SmartKraft.ch/DMF
-                    </a>
+                <div class="section-title" data-i18n="info.supportTitle">Support and Documentation</div>
+                <div style="font-size:0.9em; line-height:1.8; color:#ccc; margin-bottom:20px;">
+                    <span data-i18n="info.supportText">For detailed user manual, example scenarios and updates:</span><br>
+                    <a href="https://smartkraft.ch/DMF" target="_blank" style="color:#0f0; text-decoration:none; border:1px solid #0f0; padding:8px 16px; display:inline-block; margin-top:12px; text-transform:uppercase; letter-spacing:1px;" data-i18n="info.supportLink">SmartKraft.ch/DMF</a>
                 </div>
 
-                <div style="border-top:1px solid #333; padding-top:16px; margin-top:30px; text-align:center; font-size:0.75em; color:#666;">
-                    <div data-i18n="info.footer">SmartKraft DMF v1.0 • Open Source Hardware/Software</div>
-                    <div style="margin-top:4px;">© 2025 SmartKraft Systems</div>
+                <div style="border-top:1px solid #333; padding-top:16px; margin-top:30px; text-align:center; font-size:0.75em; color:#666;" data-i18n="info.footer">
+                    SmartKraft DMF v1.0 • Open Source Hardware/Software
+                    © 2025 SmartKraft Systems
                 </div>
             </div>
         </div>
@@ -1165,91 +1049,6 @@ Timer completed. Urgent action required.</textarea>
                 }
             } catch (err) { showAlert('wifiAlert', err.message || 'Taramada hata', 'error'); }
         }
-        
-        // Custom API Endpoint Functions
-        async function loadAPISettings() {
-            try {
-                const data = await api('/api/settings');
-                document.getElementById('apiEnabled').checked = data.enabled || false;
-                document.getElementById('apiEndpoint').value = data.endpoint || '';
-                document.getElementById('apiRequireToken').checked = data.requireToken || false;
-                document.getElementById('apiToken').value = data.token || '';
-                toggleAPIToken();
-                updateAPIPreview();
-            } catch (err) {
-                console.error('[API SETTINGS] Load error:', err);
-            }
-        }
-        
-        async function saveAPISettings() {
-            try {
-                const payload = {
-                    enabled: document.getElementById('apiEnabled').checked,
-                    endpoint: document.getElementById('apiEndpoint').value,
-                    requireToken: document.getElementById('apiRequireToken').checked,
-                    token: document.getElementById('apiToken').value
-                };
-                await api('/api/settings', { method: 'PUT', body: payload });
-                showAlert('wifiAlert', 'API settings saved successfully!', 'success');
-                updateAPIPreview();
-            } catch (err) {
-                console.error('[API SETTINGS] Save error:', err);
-                showAlert('wifiAlert', 'Failed to save API settings: ' + (err.message || ''), 'error');
-            }
-        }
-        
-        function toggleAPIToken() {
-            const requireToken = document.getElementById('apiRequireToken').checked;
-            const tokenGroup = document.getElementById('apiTokenGroup');
-            if (tokenGroup) {
-                tokenGroup.style.display = requireToken ? 'flex' : 'none';
-            }
-            updateAPIPreview();
-        }
-        
-        function updateAPIPreview() {
-            const endpoint = document.getElementById('apiEndpoint').value || 'trigger';
-            const requireToken = document.getElementById('apiRequireToken').checked;
-            const token = document.getElementById('apiToken').value;
-            
-            // Get current IP (try to extract from status or use placeholder)
-            let currentIP = '192.168.1.100';
-            if (window.lastStatus && window.lastStatus.network && window.lastStatus.network.ip) {
-                currentIP = window.lastStatus.network.ip;
-            }
-            
-            const fullUrl = `http://${currentIP}/api/${endpoint}`;
-            
-            // Update preview
-            const previewEl = document.getElementById('apiPreview');
-            if (previewEl) {
-                previewEl.textContent = fullUrl;
-            }
-            
-            // Update examples
-            const curlExample = requireToken 
-                ? `curl -X POST -H "Authorization: ${token}" ${fullUrl}`
-                : `curl -X POST ${fullUrl}`;
-            const curlEl = document.getElementById('apiExampleCurl');
-            if (curlEl) curlEl.textContent = curlExample;
-            
-            const haExample = requireToken
-                ? `rest_command:\n  trigger_dmf:\n    url: "${fullUrl}"\n    method: POST\n    headers:\n      Authorization: "${token}"`
-                : `rest_command:\n  trigger_dmf:\n    url: "${fullUrl}"\n    method: POST`;
-            const haEl = document.getElementById('apiExampleHA');
-            if (haEl) haEl.innerHTML = haExample.replace(/\n/g, '<br>  ');
-            
-            const nodeExample = `[http request] → POST → ${fullUrl}${requireToken ? ' (Auth: ' + token + ')' : ''}`;
-            const nodeEl = document.getElementById('apiExampleNode');
-            if (nodeEl) nodeEl.textContent = nodeExample;
-        }
-        
-        // ⚠️ YENİ: Accordion Toggle
-        function toggleAccordion(header) {
-            header.classList.toggle('active');
-            const content = header.nextElementSibling;
-            content.classList.toggle('active');
-        }
 
         async function factoryReset() {
             if(!confirm(t('info.factoryResetConfirm'))) return;
@@ -1387,7 +1186,6 @@ Timer completed. Urgent action required.</textarea>
             loadTimerSettings(); // async ama await etme
             loadMailSettings(); // async ama await etme
             loadWiFiSettings(); // async ama await etme
-            loadAPISettings(); // async ama await etme - Load custom API settings
             bindStaticIpToggles();
             
             // 6. Düzenli status güncelleme (daha hızlı - responsive UI için)
@@ -1484,10 +1282,6 @@ void WebInterface::begin(WebServer *srv,
     server->on("/api/attachments", HTTP_DELETE, [this]() { handleAttachmentDelete(); });
     
     server->on("/api/i18n", HTTP_GET, [this]() { handleI18n(); });
-    
-    // Custom API endpoint settings
-    server->on("/api/settings", HTTP_GET, [this]() { handleAPIGet(); });
-    server->on("/api/settings", HTTP_PUT, [this]() { handleAPIUpdate(); });
 
     server->on("/api/logs", HTTP_GET, [this]() { handleLogs(); });
     server->on("/api/reboot", HTTP_POST, [this]() { handleReboot(); });
@@ -1587,23 +1381,12 @@ void WebInterface::startServer() {
         }
     }
     
-    // Set up dynamic API endpoint handler
-    server->onNotFound([this]() {
-        String uri = server->uri();
-        if (uri.startsWith("/api/")) {
-            handleAPITrigger();
-        } else {
-            server->send(404, "text/plain", "Not Found");
-        }
-    });
-    
     // WebServer'ı başlat
     server->begin();
     
-    // ⚠️ WiFi GÜÇÜNÜ MAKSIMUMA ÇEK VE UYKU MODUNU TAMAMEN DEVRE DIŞI BIRAK
-    WiFi.setSleep(WIFI_PS_NONE);  // Arduino API
-    esp_wifi_set_ps(WIFI_PS_NONE);  // ESP-IDF seviyesi
-    Serial.println(F("[Web] WiFi power save: NONE (Uyku modu KAPALI)"));
+    // WiFi güç yönetimini tamamen kapat (light sleep engellensin)
+    WiFi.setSleep(WIFI_PS_NONE);
+    Serial.println(F("[Web] WiFi power save: NONE"));
     
     if (staConnected) {
         Serial.printf("[Web] STA IP: %s\n", WiFi.localIP().toString().c_str());
@@ -1720,8 +1503,8 @@ void WebInterface::handleStatus() {
     doc["finalTriggered"] = snap.finalTriggered;
     doc["totalSeconds"] = scheduler->totalSeconds();
     
-    // Alarmları her zaman gönder (timer aktif olmasa bile)
-    if (snap.totalAlarms > 0) {
+    // Alarmları sadece aktif durumda gönder
+    if (snap.timerActive && snap.totalAlarms > 0) {
         auto alarms = doc.createNestedArray("alarms");
         for (uint8_t i = 0; i < snap.totalAlarms; ++i) {
             alarms.add(snap.alarmOffsets[i]);
@@ -2262,94 +2045,6 @@ void WebInterface::handleI18n() {
     }
     
     server->send(200, "application/json", String(i18nData));
-}
-
-// Custom API endpoint handlers
-void WebInterface::handleAPIGet() {
-    APISettings settings = store->loadAPISettings();
-    
-    StaticJsonDocument<512> doc;
-    doc["enabled"] = settings.enabled;
-    doc["endpoint"] = settings.endpoint;
-    doc["requireToken"] = settings.requireToken;
-    doc["token"] = settings.token;
-    
-    sendJson(doc);
-}
-
-void WebInterface::handleAPIUpdate() {
-    if (!server->hasArg("plain")) {
-        server->send(400, "application/json", "{\"error\":\"No data\"}");
-        return;
-    }
-    
-    StaticJsonDocument<512> doc;
-    DeserializationError error = deserializeJson(doc, server->arg("plain"));
-    
-    if (error) {
-        server->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
-        return;
-    }
-    
-    APISettings settings;
-    settings.enabled = doc["enabled"] | false;
-    settings.endpoint = doc["endpoint"] | "";
-    settings.requireToken = doc["requireToken"] | false;
-    settings.token = doc["token"] | "";
-    
-    // Validate endpoint - must not be empty if enabled
-    if (settings.enabled && settings.endpoint.isEmpty()) {
-        server->send(400, "application/json", "{\"error\":\"Endpoint cannot be empty\"}");
-        return;
-    }
-    
-    // Save settings
-    store->saveAPISettings(settings);
-    
-    StaticJsonDocument<64> response;
-    response["status"] = "success";
-    sendJson(response);
-}
-
-void WebInterface::handleAPITrigger() {
-    // This will be called via onNotFound for dynamic endpoints
-    // Check if the path matches the custom API endpoint
-    APISettings settings = store->loadAPISettings();
-    
-    if (!settings.enabled) {
-        server->send(404, "application/json", "{\"error\":\"Not found\"}");
-        return;
-    }
-    
-    String uri = server->uri();
-    String expectedPath = "/api/" + settings.endpoint;
-    
-    if (uri != expectedPath) {
-        server->send(404, "application/json", "{\"error\":\"Not found\"}");
-        return;
-    }
-    
-    // Check token if required
-    if (settings.requireToken) {
-        String providedToken = server->hasHeader("Authorization") ? server->header("Authorization") : "";
-        if (providedToken != settings.token) {
-            server->send(401, "application/json", "{\"error\":\"Unauthorized\"}");
-            return;
-        }
-    }
-    
-    // Trigger virtual button
-    if (scheduler != nullptr) {
-        scheduler->reset();
-        scheduler->start();
-        
-        StaticJsonDocument<128> response;
-        response["status"] = "triggered";
-        response["endpoint"] = settings.endpoint;
-        sendJson(response);
-    } else {
-        server->send(500, "application/json", "{\"error\":\"Scheduler not available\"}");
-    }
 }
 
 void WebInterface::sendJson(const JsonDocument &doc) {

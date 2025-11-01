@@ -79,6 +79,7 @@ MailSettings ConfigStore::loadMailSettings() const {
         mail.username = doc["username"].as<String>();
         mail.password = doc["password"].as<String>();
 
+        // DEPRECATED: Eski recipients listesi (geriye uyumluluk)
         if (doc.containsKey("recipients") && doc["recipients"].is<JsonArray>()) {
             auto array = doc["recipients"].as<JsonArray>();
             mail.recipientCount = min((uint8_t)array.size(), (uint8_t)MAX_RECIPIENTS);
@@ -91,10 +92,78 @@ MailSettings ConfigStore::loadMailSettings() const {
         mail.warning.body = doc["warning"]["body"].as<String>();
         mail.warning.getUrl = doc["warning"]["getUrl"].as<String>();
 
-        mail.finalContent.subject = doc["final"]["subject"].as<String>();
-        mail.finalContent.body = doc["final"]["body"].as<String>();
-        mail.finalContent.getUrl = doc["final"]["getUrl"].as<String>();
+        // ⚠️ YENİ: Mail Grupları yükle
+        if (doc.containsKey("mailGroups") && doc["mailGroups"].is<JsonArray>()) {
+            auto groupsArray = doc["mailGroups"].as<JsonArray>();
+            mail.mailGroupCount = min((uint8_t)groupsArray.size(), (uint8_t)MAX_MAIL_GROUPS);
+            
+            for (uint8_t g = 0; g < mail.mailGroupCount; ++g) {
+                auto groupObj = groupsArray[g];
+                MailGroup &group = mail.mailGroups[g];
+                
+                group.name = groupObj["name"].as<String>();
+                group.enabled = groupObj["enabled"] | false;
+                group.subject = groupObj["subject"].as<String>();
+                group.body = groupObj["body"].as<String>();
+                group.getUrl = groupObj["getUrl"].as<String>();
+                
+                // Grup alıcılarını yükle
+                if (groupObj.containsKey("recipients") && groupObj["recipients"].is<JsonArray>()) {
+                    auto recArray = groupObj["recipients"].as<JsonArray>();
+                    group.recipientCount = min((uint8_t)recArray.size(), (uint8_t)MAX_RECIPIENTS_PER_GROUP);
+                    for (uint8_t i = 0; i < group.recipientCount; ++i) {
+                        group.recipients[i] = recArray[i].as<String>();
+                    }
+                }
+                
+                // Grup dosyalarını yükle
+                if (groupObj.containsKey("attachments") && groupObj["attachments"].is<JsonArray>()) {
+                    auto attArray = groupObj["attachments"].as<JsonArray>();
+                    group.attachmentCount = min((uint8_t)attArray.size(), (uint8_t)MAX_ATTACHMENTS_PER_GROUP);
+                    for (uint8_t i = 0; i < group.attachmentCount; ++i) {
+                        auto entry = attArray[i];
+                        strlcpy(group.attachments[i].displayName, entry["displayName"].as<const char*>(), MAX_FILENAME_LEN);
+                        strlcpy(group.attachments[i].storedPath, entry["storedPath"].as<const char*>(), MAX_PATH_LEN);
+                        group.attachments[i].size = entry["size"].as<uint32_t>();
+                        group.attachments[i].forWarning = entry["forWarning"].as<bool>();
+                        group.attachments[i].forFinal = entry["forFinal"].as<bool>();
+                    }
+                }
+            }
+        } else {
+            // ⚠️ GERİYE UYUMLULUK: Eski "final" yapısını ilk gruba taşı
+            if (doc.containsKey("final")) {
+                mail.mailGroupCount = 1;
+                MailGroup &group = mail.mailGroups[0];
+                group.name = "Varsayılan Grup";
+                group.enabled = true;
+                group.subject = doc["final"]["subject"].as<String>();
+                group.body = doc["final"]["body"].as<String>();
+                group.getUrl = doc["final"]["getUrl"].as<String>();
+                
+                // Eski recipients'ları ilk gruba kopyala
+                group.recipientCount = mail.recipientCount;
+                for (uint8_t i = 0; i < group.recipientCount; ++i) {
+                    group.recipients[i] = mail.recipients[i];
+                }
+                
+                // Eski attachments'ları ilk gruba kopyala
+                if (doc.containsKey("attachments") && doc["attachments"].is<JsonArray>()) {
+                    auto array = doc["attachments"].as<JsonArray>();
+                    group.attachmentCount = min((uint8_t)array.size(), (uint8_t)MAX_ATTACHMENTS_PER_GROUP);
+                    for (uint8_t i = 0; i < group.attachmentCount; ++i) {
+                        auto entry = array[i];
+                        strlcpy(group.attachments[i].displayName, entry["displayName"].as<const char*>(), MAX_FILENAME_LEN);
+                        strlcpy(group.attachments[i].storedPath, entry["storedPath"].as<const char*>(), MAX_PATH_LEN);
+                        group.attachments[i].size = entry["size"].as<uint32_t>();
+                        group.attachments[i].forWarning = entry["forWarning"].as<bool>();
+                        group.attachments[i].forFinal = entry["forFinal"].as<bool>();
+                    }
+                }
+            }
+        }
 
+        // DEPRECATED: Eski attachments sistemi (sadece geriye uyumluluk için yükle)
         if (doc.containsKey("attachments") && doc["attachments"].is<JsonArray>()) {
             auto array = doc["attachments"].as<JsonArray>();
             mail.attachmentCount = min((uint8_t)array.size(), (uint8_t)MAX_ATTACHMENTS);
@@ -118,6 +187,7 @@ void ConfigStore::saveMailSettings(const MailSettings &mail) {
     doc["username"] = mail.username;
     doc["password"] = mail.password;
 
+    // DEPRECATED: Eski recipients (geriye uyumluluk)
     auto recipients = doc.createNestedArray("recipients");
     for (uint8_t i = 0; i < mail.recipientCount; ++i) {
         recipients.add(mail.recipients[i]);
@@ -128,11 +198,37 @@ void ConfigStore::saveMailSettings(const MailSettings &mail) {
     warning["body"] = mail.warning.body;
     warning["getUrl"] = mail.warning.getUrl;
 
-    auto finalObj = doc.createNestedObject("final");
-    finalObj["subject"] = mail.finalContent.subject;
-    finalObj["body"] = mail.finalContent.body;
-    finalObj["getUrl"] = mail.finalContent.getUrl;
+    // ⚠️ YENİ: Mail Gruplarını kaydet
+    auto mailGroups = doc.createNestedArray("mailGroups");
+    for (uint8_t g = 0; g < mail.mailGroupCount; ++g) {
+        const MailGroup &group = mail.mailGroups[g];
+        auto groupObj = mailGroups.createNestedObject();
+        
+        groupObj["name"] = group.name;
+        groupObj["enabled"] = group.enabled;
+        groupObj["subject"] = group.subject;
+        groupObj["body"] = group.body;
+        groupObj["getUrl"] = group.getUrl;
+        
+        // Grup alıcılarını kaydet
+        auto recArray = groupObj.createNestedArray("recipients");
+        for (uint8_t i = 0; i < group.recipientCount; ++i) {
+            recArray.add(group.recipients[i]);
+        }
+        
+        // Grup dosyalarını kaydet
+        auto attArray = groupObj.createNestedArray("attachments");
+        for (uint8_t i = 0; i < group.attachmentCount; ++i) {
+            auto entry = attArray.createNestedObject();
+            entry["displayName"] = group.attachments[i].displayName;
+            entry["storedPath"] = group.attachments[i].storedPath;
+            entry["size"] = group.attachments[i].size;
+            entry["forWarning"] = group.attachments[i].forWarning;
+            entry["forFinal"] = group.attachments[i].forFinal;
+        }
+    }
 
+    // DEPRECATED: Eski attachments (geriye uyumluluk)
     auto attachments = doc.createNestedArray("attachments");
     for (uint8_t i = 0; i < mail.attachmentCount; ++i) {
         auto entry = attachments.createNestedObject();

@@ -19,14 +19,7 @@ struct WarningContent {
     String getUrl = "";
 };
 
-struct FinalContent {
-    String subject = "SmartKraft DMF Final";
-    String body = "Süre doldu.";
-    String getUrl = "";
-};
-
-static const size_t MAX_RECIPIENTS = 10;
-static const size_t MAX_ATTACHMENTS = 5;
+// ⚠️ ÖNCE: AttachmentMeta tanımlanmalı (MailGroup içinde kullanılıyor)
 static const size_t MAX_FILENAME_LEN = 48;
 static const size_t MAX_PATH_LEN = 64;
 
@@ -38,18 +31,49 @@ struct AttachmentMeta {
     bool forFinal = true;
 };
 
+// ⚠️ YENİ: Mail Grubu - Her grup kendi mesajı, alıcıları ve dosyaları ile
+static const size_t MAX_RECIPIENTS_PER_GROUP = 10;
+static const size_t MAX_ATTACHMENTS_PER_GROUP = 5;
+static const size_t MAX_MAIL_GROUPS = 3; // Maksimum 3 farklı mail grubu
+
+struct MailGroup {
+    String name = ""; // Grup ismi (örn: "Yönetim", "Teknik Ekip", "Acil Durum")
+    bool enabled = false; // Grup aktif mi?
+    
+    // Grup alıcıları
+    String recipients[MAX_RECIPIENTS_PER_GROUP];
+    uint8_t recipientCount = 0;
+    
+    // Grup mesaj içeriği
+    String subject = "SmartKraft DMF Final";
+    String body = "Süre doldu.";
+    String getUrl = "";
+    
+    // Grup dosyaları (her grubun kendi attachments'ı)
+    AttachmentMeta attachments[MAX_ATTACHMENTS_PER_GROUP];
+    uint8_t attachmentCount = 0;
+};
+
+static const size_t MAX_RECIPIENTS = 10; // DEPRECATED - geriye uyumluluk için
+static const size_t MAX_ATTACHMENTS = 5; // DEPRECATED - geriye uyumluluk için
+
 struct MailSettings {
     String smtpServer = "smtp.protonmail.ch";
     uint16_t smtpPort = 465; // TLS/SSL port (önerilen)
     String username = "";
     String password = ""; // Proton app password
 
+    // ⚠️ DEPRECATED: Eski tek liste yapısı - geriye uyumluluk için
     String recipients[MAX_RECIPIENTS];
     uint8_t recipientCount = 0;
 
     WarningContent warning;
-    FinalContent finalContent;
+    
+    // ⚠️ YENİ: Birden fazla mail grubu (her grubun kendi mesajı/dosyası)
+    MailGroup mailGroups[MAX_MAIL_GROUPS];
+    uint8_t mailGroupCount = 0; // Aktif grup sayısı
 
+    // ⚠️ DEPRECATED: Eski attachment sistemi - geriye uyumluluk için
     AttachmentMeta attachments[MAX_ATTACHMENTS];
     uint8_t attachmentCount = 0;
 };

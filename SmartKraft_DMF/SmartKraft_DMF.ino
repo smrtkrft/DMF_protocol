@@ -6,8 +6,6 @@
 #include <esp_system.h>
 #include <DNSServer.h>
 #include <esp_task_wdt.h>  // Watchdog timer için
-#include <esp_pm.h>        // Güç yönetimi için
-#include <esp_wifi.h>      // WiFi güç yönetimi için
 
 #include "config_store.h"
 #include "scheduler.h"
@@ -64,9 +62,6 @@ void initHardware() {
     pinMode(RELAY_PIN, OUTPUT);
     digitalWrite(RELAY_PIN, LOW);
     relayLatched = false;
-    
-    Serial.printf("[Init] BUTTON: D3 (GPIO%d)\n", BUTTON_PIN);
-    Serial.printf("[Init] RELAY: D10 (GPIO%d)\n", RELAY_PIN);
 }
 
 void latchRelay(bool state) {
@@ -80,11 +75,8 @@ void resetTimerFromButton() {
     scheduler.start();
     scheduler.persist();
     
-    // Reboot flag'ini sıfırla
     finalMailSent = false;
     finalMailSentTime = 0;
-    
-    Serial.println(F("[Timer] Fiziksel/sanal buton ile geri sayım yeniden başlatıldı"));
 }
 
 // performGetRequest() fonksiyonu KALDIRILDI
@@ -95,18 +87,13 @@ void processAlarms() {
 
     if (scheduler.alarmDue(alarmIndex)) {
         ScheduleSnapshot snap = scheduler.snapshot();
-        Serial.printf("[Alarm] %u numaralı alarm tetiklendi\n", alarmIndex + 1);
         
         if (!networkManager.isConnected()) {
             networkManager.ensureConnected(true);
         }
         
         String error;
-        if (!mailAgent.sendWarning(alarmIndex, snap, error)) {
-            Serial.printf("[Mail] Uyarı maili gönderilemedi: %s\n", error.c_str());
-        } else {
-            Serial.println(F("[Mail] Uyarı maili gönderildi"));
-        }
+        mailAgent.sendWarning(alarmIndex, snap, error);
         
         scheduler.acknowledgeAlarm(alarmIndex);
         scheduler.persist();
@@ -115,7 +102,6 @@ void processAlarms() {
 
     if (scheduler.finalDue()) {
         ScheduleSnapshot snap = scheduler.snapshot();
-        Serial.println(F("[Final] Süre doldu, röle tetikleniyor"));
         latchRelay(true);
         
         if (!networkManager.isConnected()) {
@@ -123,15 +109,10 @@ void processAlarms() {
         }
         
         String error;
-        if (!mailAgent.sendFinal(snap, error)) {
-            Serial.printf("[Mail] Final maili gönderilemedi: %s\n", error.c_str());
-        } else {
-            Serial.println(F("[Mail] Final maili gönderildi"));
-            
+        if (mailAgent.sendFinal(snap, error)) {
             if (!finalMailSent) {
                 finalMailSent = true;
                 finalMailSentTime = millis();
-                Serial.println(F("[Reboot] 60 saniye sonra cihaz yeniden başlatılacak"));
             }
         }
         
@@ -150,7 +131,6 @@ void handleButton() {
             lastButtonState = state;
             
             if (state == LOW) {
-                Serial.println(F("[BUTTON] Fiziksel buton basıldı - Timer sıfırlanıyor"));
                 resetTimerFromButton();
             }
         }
@@ -160,55 +140,28 @@ void handleButton() {
 void setup() {
     Serial.begin(115200);
     delay(100);
-    Serial.println();
-    Serial.println(F("=== SmartKraft DMF Başlıyor ==="));
+    Serial.println(F("\n=== SmartKraft DMF v1.0 ==="));
 
     deviceId = generateDeviceId();
-    Serial.printf("[Cihaz] ID: %s\n", deviceId.c_str());
+    Serial.printf("ID: %s\n", deviceId.c_str());
     randomSeed(esp_random());
 
-    // ⚠️ UYKU MODUNU TAMAMEN DEVRE DIŞI BIRAK
-    Serial.println(F("[Power] Güç yönetimi devre dışı bırakılıyor..."));
-    
-    // CPU otomatik güç yönetimini kapat (light sleep/modem sleep engellenir)
-    esp_pm_config_t pm_config;
-    pm_config.max_freq_mhz = 160;  // Maksimum CPU frekansı
-    pm_config.min_freq_mhz = 160;  // Minimum CPU frekansı (AYNI değer = frekans düşürme YOK)
-    pm_config.light_sleep_enable = false;  // Light sleep KAPALI
-    esp_pm_configure(&pm_config);
-    Serial.println(F("[Power] CPU güç yönetimi devre dışı (160MHz sabit)"));
-
-    Serial.println(F("[Init] Donanım başlatılıyor..."));
     initHardware();
 
-    Serial.println(F("[Init] Dosya sistemi başlatılıyor..."));
     if (!configStore.begin()) {
-        Serial.println(F("[FS] Dosya sistemi başlatılamadı"));
+        Serial.println(F("[ERROR] Filesystem failed"));
     }
 
-    Serial.println(F("[Init] Scheduler başlatılıyor..."));
     scheduler.begin(&configStore);
-    
-    Serial.println(F("[Init] Network manager başlatılıyor..."));
     networkManager.begin(&configStore);
-    
-    Serial.println(F("[Init] Mail agent başlatılıyor..."));
     mailAgent.begin(&configStore, &networkManager, deviceId);
     
-    Serial.println(F("[Init] Web sunucusu başlatılıyor..."));
     String apName = generateAPName();
     webUI.begin(&webServer, &configStore, &scheduler, &mailAgent, &networkManager, deviceId, &dnsServer, apName);
-    
-    Serial.println(F("[Init] Test arayüzü başlatılıyor..."));
     testInterface.begin(&scheduler, &mailAgent);
 
-    Serial.println(F("[Init] Başlangıç tamamlandı, WiFi devre dışı"));
-    
     ScheduleSnapshot initialSnap = scheduler.snapshot();
-
-    if (initialSnap.timerActive) {
-        Serial.println(F("[Timer] Kalan süre ile devam ediliyor"));
-    } else {
+    if (!initialSnap.timerActive) {
         latchRelay(false);
     }
 
@@ -216,75 +169,41 @@ void setup() {
     lastButtonChange = millis();
     lastPersist = millis();
     
-    Serial.println(F("[Init] WebServer başlatılıyor..."));
     webUI.startServer();
+    WiFi.setSleep(WIFI_PS_NONE);
     
-    // ⚠️ WiFi GÜÇÜNÜ MAKSIMUMA ÇEK VE UYKU MODUNU DEVRE DIŞI BIRAK
-    WiFi.setSleep(WIFI_PS_NONE);  // WiFi uyku modu KAPALI
-    esp_wifi_set_ps(WIFI_PS_NONE);  // ESP-IDF seviyesinde WiFi güç tasarrufu KAPALI
-    Serial.println(F("[WiFi] Güç tasarrufu KAPALI - WiFi sürekli aktif"));
-    
-    Serial.println(F("[Init] Sistem hazır!"));
+    Serial.println(F("[READY]\n"));
 }
 
 void loop() {
     static unsigned long lastLoop = 0;
     static unsigned long loopCounter = 0;
     
-    // Web server handler - en yüksek öncelik
     webUI.loop();
-    
-    // Core timer functionality
     scheduler.tick();
     handleButton();
     
-    // Alarmları daha az sıklıkta kontrol et - her 500ms'de bir
     if (millis() - lastLoop > 500) {
         processAlarms();
         lastLoop = millis();
     }
     
-    // Test interface'i daha az sıklıkta - her 1 saniyede bir
-    if (loopCounter % 100 == 0) { // 10ms x 100 = 1s
+    if (loopCounter % 100 == 0) {
         testInterface.processSerial();
     }
 
-    // ⚠️ YENİ: Final mail gönderildikten 60 saniye sonra reboot
-    if (finalMailSent) {
-        unsigned long elapsed = millis() - finalMailSentTime;
-        unsigned long remaining = 60000 - elapsed;
-        
-        // Her 10 saniyede bir geri sayım mesajı bas
-        static unsigned long lastCountdownMsg = 0;
-        if (millis() - lastCountdownMsg >= 10000) {
-            if (remaining > 1000) {
-                Serial.printf("[Reboot] Yeniden başlatmaya %lu saniye kaldı...\n", remaining / 1000);
-                lastCountdownMsg = millis();
-            }
-        }
-        
-        // 60 saniye doldu - reboot!
-        if (elapsed >= 60000) {
-            Serial.println(F(""));
-            Serial.println(F("========================================"));
-            Serial.println(F("[Reboot] 60 saniye doldu!"));
-            Serial.println(F("[Reboot] Cihaz yeniden başlatılıyor..."));
-            Serial.println(F("========================================"));
-            delay(1000); // Serial mesajının gönderilmesi için bekle
-            ESP.restart();
-        }
+    if (finalMailSent && (millis() - finalMailSentTime >= 60000)) {
+        Serial.println(F("[REBOOT]"));
+        delay(500);
+        ESP.restart();
     }
 
-    // Dosya sistemine yazma işlemi - daha az sıklıkta (her 60 saniye)
     if (millis() - lastPersist > STATUS_PERSIST_INTERVAL_MS) {
         scheduler.persist();
         lastPersist = millis();
     }
     
-    // Sistem responsive tutmak için
     yield();
     loopCounter++;
-    
-    // Minimal delay - çok hızlı döngüyü önlemek için
     delayMicroseconds(100);
 }
