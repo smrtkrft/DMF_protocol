@@ -381,6 +381,6 @@ Detaylar için [LICENSE](LICENSE) dosyasına bakın.
 
 ---
 
-**© 2025 SmartKraft. Tüm hakları saklıdır.**
+**© 2025 [SmartKraft](https://smartkraft.ch). Tüm hakları saklıdır.**
 
 **Merak etmek geliştirir, geliştirmek hayat kurtarır** 🛡️
