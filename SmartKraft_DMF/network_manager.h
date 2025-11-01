@@ -28,6 +28,10 @@ public:
     std::vector<ScanResult> scanNetworks();
     
     bool connectToKnown();
+    
+    // OTA Update Functions
+    bool checkOTAUpdate(String currentVersion);
+    void performOTAUpdate();
 
 private:
     ConfigStore *store = nullptr;

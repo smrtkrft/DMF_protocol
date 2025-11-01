@@ -6,6 +6,9 @@
 #include <esp_system.h>
 #include <DNSServer.h>
 #include <esp_task_wdt.h>  // Watchdog timer için
+#include <Update.h>  // OTA için
+
+#define FIRMWARE_VERSION "1.0.0"
 
 #include "config_store.h"
 #include "scheduler.h"
@@ -38,6 +41,7 @@ unsigned long lastButtonChange = 0;
 bool lastButtonState = true;
 unsigned long lastPersist = 0;
 unsigned long lastReboot = 0; // Otomatik reboot takibi
+unsigned long lastOTACheck = 0; // OTA güncelleme kontrolü
 unsigned long finalMailSentTime = 0; // Final mail gönderilme zamanı
 bool finalMailSent = false; // Final mail gönderildi mi?
 
@@ -142,7 +146,7 @@ void handleButton() {
 void setup() {
     Serial.begin(115200);
     delay(100);
-    Serial.println(F("\n=== SmartKraft DMF v1.0 ==="));
+    Serial.printf("\n=== SmartKraft DMF v%s ===\n", FIRMWARE_VERSION);
 
     deviceId = generateDeviceId();
     Serial.printf("ID: %s\n", deviceId.c_str());
@@ -171,12 +175,14 @@ void setup() {
     lastButtonChange = millis();
     lastPersist = millis();
     lastReboot = millis(); // Reboot zamanlayıcısını başlat
+    lastOTACheck = millis(); // OTA kontrol zamanlayıcısını başlat
     
     webUI.startServer();
     WiFi.setSleep(WIFI_PS_NONE);
     
     Serial.println(F("[READY]"));
-    Serial.println(F("[AUTO-REBOOT] Sonraki yenileme: 12 saat sonra\n"));
+    Serial.println(F("[AUTO-REBOOT] Sonraki yenileme: 12 saat sonra"));
+    Serial.println(F("[OTA] Otomatik güncelleme aktif\n"));
 }
 
 void loop() {
@@ -227,6 +233,24 @@ void loop() {
     if (millis() - lastPersist > STATUS_PERSIST_INTERVAL_MS) {
         scheduler.persist();
         lastPersist = millis();
+    }
+    
+    // OTA güncelleme kontrolü (24 saatte bir)
+    if (millis() - lastOTACheck > 86400000) { // 24 saat
+        ScheduleSnapshot snap = scheduler.snapshot();
+        
+        // Son 1 saatte veya final mail aktifse OTA yapma
+        if (!finalMailSent && (!snap.timerActive || snap.remainingSeconds > 3600)) {
+            if (networkManager.checkOTAUpdate(FIRMWARE_VERSION)) {
+                Serial.println(F("[OTA] Yeni versiyon bulundu - güncelleniyor..."));
+                scheduler.persist(); // Son durumu kaydet
+                delay(200);
+                // networkManager.performOTAUpdate() içinde ESP.restart() var
+            }
+        } else {
+            Serial.println(F("[OTA] Güncelleme uygun değil - ertelendi"));
+        }
+        lastOTACheck = millis();
     }
     
     yield();

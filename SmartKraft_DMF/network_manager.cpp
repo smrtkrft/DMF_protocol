@@ -1,4 +1,6 @@
 #include "network_manager.h"
+#include <HTTPClient.h>
+#include <Update.h>
 
 void DMFNetworkManager::begin(ConfigStore *storePtr) {
     store = storePtr;
@@ -191,4 +193,108 @@ bool DMFNetworkManager::applyStaticIfNeeded(const String &ssid) {
         WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE); // Reset to DHCP
     }
     return applied;
+}
+
+// OTA Update Implementation
+bool DMFNetworkManager::checkOTAUpdate(String currentVersion) {
+    if (!isConnected()) {
+        Serial.println(F("[OTA] WiFi bağlı değil, güncelleme kontrolü atlandı"));
+        return false;
+    }
+
+    HTTPClient http;
+    http.setTimeout(10000); // 10 saniye timeout
+    
+    const char* versionURL = "https://raw.githubusercontent.com/smrtkrft/DMF_protocol/main/releases/version.txt";
+    
+    Serial.printf("[OTA] Versiyon kontrolü: %s\n", versionURL);
+    http.begin(versionURL);
+    
+    int httpCode = http.GET();
+    
+    if (httpCode == HTTP_CODE_OK) {
+        String latestVersion = http.getString();
+        latestVersion.trim(); // Whitespace temizle
+        
+        Serial.printf("[OTA] Mevcut versiyon: %s, En son versiyon: %s\n", 
+                      currentVersion.c_str(), latestVersion.c_str());
+        
+        http.end();
+        
+        // Versiyon karşılaştırması
+        if (latestVersion != currentVersion && latestVersion.length() > 0) {
+            Serial.println(F("[OTA] Yeni versiyon mevcut!"));
+            performOTAUpdate();
+            return true;
+        } else {
+            Serial.println(F("[OTA] Güncelleme gerekmiyor"));
+            return false;
+        }
+    } else {
+        Serial.printf("[OTA] HTTP hatası: %d\n", httpCode);
+        http.end();
+        return false;
+    }
+}
+
+void DMFNetworkManager::performOTAUpdate() {
+    if (!isConnected()) {
+        Serial.println(F("[OTA] WiFi bağlı değil, güncelleme iptal edildi"));
+        return;
+    }
+
+    HTTPClient http;
+    http.setTimeout(60000); // 60 saniye timeout (firmware indirme için)
+    
+    const char* firmwareURL = "https://github.com/smrtkrft/DMF_protocol/releases/latest/download/SmartKraft_DMF.ino.bin";
+    
+    Serial.printf("[OTA] Firmware indiriliyor: %s\n", firmwareURL);
+    http.begin(firmwareURL);
+    
+    int httpCode = http.GET();
+    
+    if (httpCode == HTTP_CODE_OK) {
+        int contentLength = http.getSize();
+        
+        if (contentLength > 0) {
+            Serial.printf("[OTA] Firmware boyutu: %d bytes\n", contentLength);
+            
+            bool canBegin = Update.begin(contentLength);
+            
+            if (canBegin) {
+                WiFiClient *stream = http.getStreamPtr();
+                
+                Serial.println(F("[OTA] Güncelleme başlatılıyor..."));
+                
+                size_t written = Update.writeStream(*stream);
+                
+                if (written == contentLength) {
+                    Serial.println(F("[OTA] Yazma tamamlandı"));
+                } else {
+                    Serial.printf("[OTA] Yazma hatası: sadece %d/%d byte yazıldı\n", written, contentLength);
+                }
+                
+                if (Update.end()) {
+                    if (Update.isFinished()) {
+                        Serial.println(F("[OTA] Güncelleme başarılı! Yeniden başlatılıyor..."));
+                        http.end();
+                        delay(1000);
+                        ESP.restart();
+                    } else {
+                        Serial.println(F("[OTA] Güncelleme tamamlanamadı"));
+                    }
+                } else {
+                    Serial.printf("[OTA] Hata: %s\n", Update.errorString());
+                }
+            } else {
+                Serial.println(F("[OTA] Yeterli alan yok"));
+            }
+        } else {
+            Serial.println(F("[OTA] Geçersiz içerik boyutu"));
+        }
+    } else {
+        Serial.printf("[OTA] Firmware indirme hatası: %d\n", httpCode);
+    }
+    
+    http.end();
 }

@@ -1672,9 +1672,10 @@ void WebInterface::handleMailGet() {
     doc["warning"]["subject"] = mailSettings.warning.subject;
     doc["warning"]["body"] = mailSettings.warning.body;
     doc["warning"]["getUrl"] = mailSettings.warning.getUrl;
-    doc["final"]["subject"] = mailSettings.finalContent.subject;
-    doc["final"]["body"] = mailSettings.finalContent.body;
-    doc["final"]["getUrl"] = mailSettings.finalContent.getUrl;
+    // Final mail için ilk mail grubunu kullan
+    doc["final"]["subject"] = (mailSettings.mailGroupCount > 0) ? mailSettings.mailGroups[0].subject : "";
+    doc["final"]["body"] = (mailSettings.mailGroupCount > 0) ? mailSettings.mailGroups[0].body : "";
+    doc["final"]["getUrl"] = (mailSettings.mailGroupCount > 0) ? mailSettings.mailGroups[0].getUrl : "";
     auto recipients = doc.createNestedArray("recipients");
     for (uint8_t i = 0; i < mailSettings.recipientCount; ++i) {
         recipients.add(mailSettings.recipients[i]);
@@ -1717,9 +1718,15 @@ void WebInterface::handleMailUpdate() {
     mailSettings.warning.body = doc["warning"]["body"].as<String>();
     mailSettings.warning.getUrl = doc["warning"]["getUrl"].as<String>();
 
-    mailSettings.finalContent.subject = doc["final"]["subject"].as<String>();
-    mailSettings.finalContent.body = doc["final"]["body"].as<String>();
-    mailSettings.finalContent.getUrl = doc["final"]["getUrl"].as<String>();
+    // Final mail için ilk mail grubunu kullan (yoksa oluştur)
+    if (mailSettings.mailGroupCount == 0) {
+        mailSettings.mailGroupCount = 1;
+        mailSettings.mailGroups[0].enabled = true;
+        mailSettings.mailGroups[0].name = "Default Group";
+    }
+    mailSettings.mailGroups[0].subject = doc["final"]["subject"].as<String>();
+    mailSettings.mailGroups[0].body = doc["final"]["body"].as<String>();
+    mailSettings.mailGroups[0].getUrl = doc["final"]["getUrl"].as<String>();
 
     if (doc.containsKey("recipients") && doc["recipients"].is<JsonArray>()) {
         auto rec = doc["recipients"].as<JsonArray>();
