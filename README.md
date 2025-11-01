@@ -125,7 +125,7 @@ See [LICENSE](LICENSE) file for details.
 
 ---
 
-**© 2025 SmartKraft. All rights reserved.**
+**© 2025 [SmartKraft](https://smartkraft.ch). All rights reserved.**
 
 **Curiosity develops, development saves lives** 🛡️
 
