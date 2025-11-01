@@ -22,6 +22,7 @@ constexpr uint8_t BUTTON_PIN = 21;   // D3 -> GPIO21
 constexpr uint8_t RELAY_PIN = 18;    // D10 -> GPIO18
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 200;
 constexpr uint32_t STATUS_PERSIST_INTERVAL_MS = 60000;
+constexpr uint32_t AUTO_REBOOT_INTERVAL_MS = 43200000; // 12 saat otomatik reboot (donma önleme)
 
 ConfigStore configStore;
 CountdownScheduler scheduler;
@@ -36,6 +37,7 @@ bool relayLatched = false;
 unsigned long lastButtonChange = 0;
 bool lastButtonState = true;
 unsigned long lastPersist = 0;
+unsigned long lastReboot = 0; // Otomatik reboot takibi
 unsigned long finalMailSentTime = 0; // Final mail gönderilme zamanı
 bool finalMailSent = false; // Final mail gönderildi mi?
 
@@ -168,11 +170,13 @@ void setup() {
     lastButtonState = digitalRead(BUTTON_PIN);
     lastButtonChange = millis();
     lastPersist = millis();
+    lastReboot = millis(); // Reboot zamanlayıcısını başlat
     
     webUI.startServer();
     WiFi.setSleep(WIFI_PS_NONE);
     
-    Serial.println(F("[READY]\n"));
+    Serial.println(F("[READY]"));
+    Serial.println(F("[AUTO-REBOOT] Sonraki yenileme: 12 saat sonra\n"));
 }
 
 void loop() {
@@ -190,6 +194,28 @@ void loop() {
     
     if (loopCounter % 100 == 0) {
         testInterface.processSerial();
+    }
+
+    // Otomatik 12 saatlik reboot (donma önleme)
+    if (millis() - lastReboot > AUTO_REBOOT_INTERVAL_MS) {
+        ScheduleSnapshot snap = scheduler.snapshot();
+        
+        // Final mail gönderiliyorsa reboot ertelenir
+        if (finalMailSent) {
+            Serial.println(F("[AUTO-REBOOT] Final mail aktif - reboot ertelendi"));
+            lastReboot = millis(); // Zamanlayıcıyı sıfırla
+        }
+        // Son 1 saatte reboot yapma (kritik zaman)
+        else if (snap.timerActive && snap.remainingSeconds < 3600) {
+            Serial.printf("[AUTO-REBOOT] Son 1 saat (%u dk) - reboot ertelendi\n", snap.remainingSeconds / 60);
+            lastReboot = millis(); // Zamanlayıcıyı sıfırla
+        }
+        else {
+            Serial.println(F("[AUTO-REBOOT] 12 saat doldu - sistem yenileniyor..."));
+            scheduler.persist();  // Son durumu kaydet
+            delay(200);           // Flash yazımını bekle
+            ESP.restart();
+        }
     }
 
     if (finalMailSent && (millis() - finalMailSentTime >= 60000)) {
