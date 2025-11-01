@@ -1,5 +1,12 @@
 # 🔧 Açık Kaynak Kullanım Talimatları (Geliştiriciler İçin)
 
+**[Türkçe](#turkish)** | **[English](#english)**
+
+---
+
+<a name="turkish"></a>
+## 🇹🇷 Türkçe
+
 ## 📋 İçindekiler
 
 - [Genel Bakış](#genel-bakış)
@@ -104,15 +111,11 @@ ESP32-C6'nın **4MB flash** olduğunu unutmayın. OTA için dual APP partition g
 
 ### ✅ DOĞRU Ayar (Kritik!)
 
-Arduino IDE'de:
-```
-Tools → Board → ESP32 Arduino → XIAO_ESP32C6
-Tools → Partition Scheme → "SmartKraft OTA (1.5MB APP/1MB SPIFFS)"
-```
+⚠️ **ÖNEMLİ:** Standart Arduino IDE kurulumunda "SmartKraft OTA" partition scheme'i yoktur. Manuel olarak eklemeniz GEREKMEKTEDİR.
 
-**Eğer "SmartKraft OTA" seçeneği görünmüyorsa:**
+#### Manuel Partition Ekleme (Zorunlu!)
 
-#### Manuel Partition Ekleme
+Bu adımları yapmadan cihaz BOOTLOOP'a girecektir!
 
 1. **partitions.csv dosyasını kopyalayın:**
 
@@ -142,6 +145,16 @@ XIAO_ESP32C6.menu.PartitionScheme.smartkraft.upload.maximum_size=1572864
 ```
 
 3. **Arduino IDE'yi yeniden başlatın**
+
+4. **Partition Scheme'i seçin:**
+
+Arduino IDE'de:
+```
+Tools → Board → ESP32 Arduino → XIAO_ESP32C6
+Tools → Partition Scheme → "SmartKraft OTA (1.5MB APP/1MB SPIFFS)"
+```
+
+Artık listede "SmartKraft OTA" seçeneğini göreceksiniz.
 
 ### Partition Yapısı
 
@@ -228,6 +241,7 @@ void setup() {
 **Çözüm:**
 - "SmartKraft OTA (1.5MB APP/1MB SPIFFS)" seçin
 - Partition scheme'i manuel ekleyin (yukarıdaki talimatlar)
+- Mail entegrasyonu yapmayacaksaniz , dosya yüklenmeyecegi sadece URL tetikleme yapacaginiz icin  Spiffs alani olmadan 2MB APP secebilirsiniz.
 
 ### ❌ SORUN 2: "Sketch too large" Hatası
 
@@ -271,7 +285,7 @@ SPIFFS.format();
 **Neden:**
 - ESP_Mail_Client kütüphanesi eksik/yanlış versiyon
 - SMTP ayarları yanlış
-- Watchdog timeout (uzun süren mail gönderimi)
+- Watchdog timeout (uzun süren mail gönderimi//~100KB/Saniye)
 
 **Çözüm:**
 - Mobizt ESP_Mail_Client v3.4.0+ kullanın
@@ -479,6 +493,502 @@ Yüklemeden önce kontrol edin:
 - [ ] Port doğru seçildi
 - [ ] Kütüphaneler compile oluyor
 - [ ] GPIO pinleri donanıma uygun
+
+---
+
+**© 2025 SmartKraft | AGPL-3.0 License**
+
+---
+
+<a name="english"></a>
+## 🇬🇧 English
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Installation Steps](#installation-steps)
+- [Libraries](#libraries)
+- [Partition Scheme (OTA Configuration)](#partition-scheme-ota-configuration)
+- [GPIO Pin Configuration](#gpio-pin-configuration)
+- [Critical Notes and Common Errors](#critical-notes-and-common-errors)
+- [First Compilation and Upload](#first-compilation-and-upload)
+- [OTA Update Configuration](#ota-update-configuration)
+
+---
+
+## 🎯 Overview
+
+This project is a **DMF Protocol** implementation developed for **ESP32-C6**. It includes OTA (Over-The-Air) updates, SPIFFS file system, and multi-language support.
+
+**⚠️ IMPORTANT:** This code is optimized ONLY for **ESP32-C6**. It will not work or may cause issues on other ESP32 variants.
+
+---
+
+## 📦 Requirements
+
+### Hardware
+- **ESP32-C6** microcontroller (Seeed XIAO ESP32C6 recommended)
+- **4MB Flash memory** (minimum)
+- USB-C cable (for programming)
+- Optional: Button, Relay module
+
+### Software
+- **Arduino IDE** 2.x or later
+- **ESP32 Board Package** v3.0.0 or later
+- **Git** (to clone the code)
+
+---
+
+## 🚀 Installation Steps
+
+### 1. Arduino IDE Setup
+
+#### Board Manager Configuration
+Arduino IDE → Preferences → Additional Boards Manager URLs:
+```
+https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_dev_index.json
+```
+
+#### ESP32 Board Package Installation
+Tools → Board → Boards Manager → Search "ESP32" → **esp32 by Espressif Systems** → Install (v3.0.0+)
+
+### 2. Download Code
+
+```bash
+git clone https://github.com/smrtkrft/DMF_protocol.git
+cd DMF_protocol
+```
+
+### 3. Open in Arduino IDE
+
+Open `SmartKraft_DMF/SmartKraft_DMF.ino` file with Arduino IDE.
+
+---
+
+## 📚 Libraries
+
+### Built-in Libraries (Included with ESP32 Package)
+- `WiFi.h` - WiFi connection management
+- `WebServer.h` - Web server operations
+- `SPIFFS.h` - File system
+- `Preferences.h` - Configuration for NVS (Non-Volatile Storage)
+- `Update.h` - OTA update
+- `HTTPClient.h` - HTTP requests (for OTA)
+- `esp_task_wdt.h` - Watchdog timer
+
+### External Libraries (Manual installation required)
+
+#### 1. ArduinoJson (v6.x)
+```
+Sketch → Include Library → Manage Libraries → Search "ArduinoJson" → Install v6.21.0 or later
+```
+**⚠️ WARNING:** DO NOT USE v7.x! Code is written for v6.x.
+
+#### 2. ESP Mail Client (Mobizt)
+```
+Library Manager → Search "ESP Mail Client" → Install version developed by Mobizt (v3.4.0+)
+```
+
+**Library Verification:**
+```cpp
+// If these lines compile successfully, libraries are correctly installed
+#include <ArduinoJson.h>
+#include <ESP_Mail_Client.h>
+```
+
+---
+
+## ⚙️ Partition Scheme (OTA Configuration)
+
+### ❌ WRONG Partition Selection = Bootloop!
+
+Remember that ESP32-C6 has **4MB flash**. Dual APP partition is required for OTA.
+
+### ✅ CORRECT Setting (Critical!)
+
+⚠️ **IMPORTANT:** Standard Arduino IDE installation DOES NOT include "SmartKraft OTA" partition scheme. You MUST add it manually.
+
+#### Manual Partition Addition (Mandatory!)
+
+Device will enter BOOTLOOP if you don't follow these steps!
+
+1. **Copy partitions.csv file:**
+
+Windows:
+```powershell
+Copy-Item "partitions.csv" "$env:LOCALAPPDATA\Arduino15\packages\esp32\hardware\esp32\3.x.x\tools\partitions\smartkraft_ota.csv"
+```
+
+Linux/Mac:
+```bash
+cp partitions.csv ~/.arduino15/packages/esp32/hardware/esp32/3.x.x/tools/partitions/smartkraft_ota.csv
+```
+
+*(Replace 3.x.x with your installed version)*
+
+2. **Edit boards.txt file:**
+
+File path:
+- Windows: `%LOCALAPPDATA%\Arduino15\packages\esp32\hardware\esp32\3.x.x\boards.txt`
+- Linux/Mac: `~/.arduino15/packages/esp32/hardware/esp32/3.x.x/boards.txt`
+
+**Lines to add** (to XIAO_ESP32C6 section):
+```
+XIAO_ESP32C6.menu.PartitionScheme.smartkraft=SmartKraft OTA (1.5MB APP/1MB SPIFFS)
+XIAO_ESP32C6.menu.PartitionScheme.smartkraft.build.partitions=smartkraft_ota
+XIAO_ESP32C6.menu.PartitionScheme.smartkraft.upload.maximum_size=1572864
+```
+
+3. **Restart Arduino IDE**
+
+4. **Select Partition Scheme:**
+
+In Arduino IDE:
+```
+Tools → Board → ESP32 Arduino → XIAO_ESP32C6
+Tools → Partition Scheme → "SmartKraft OTA (1.5MB APP/1MB SPIFFS)"
+```
+
+You will now see "SmartKraft OTA" option in the list.
+
+### Partition Structure
+
+```
+# Name,   Type, SubType, Offset,  Size
+nvs,      data, nvs,     0x9000,  0x5000
+otadata,  data, ota,     0xe000,  0x2000
+app0,     app,  ota_0,   0x10000, 0x180000   # 1.5MB
+app1,     app,  ota_1,   0x190000,0x180000   # 1.5MB (for OTA)
+spiffs,   data, spiffs,  0x310000,0xF0000    # 960KB
+```
+
+**⚠️ Why Important:**
+- **app0 + app1:** Dual boot for OTA updates
+- **spiffs:** Web files and configurations
+- **Total:** Full 4MB flash usage
+- **Without app1:** OTA won't work
+- **Without spiffs:** Web interface and settings will be lost
+
+---
+
+## 📍 GPIO Pin Configuration
+
+### Used Pins
+
+```cpp
+// Defined in SmartKraft_DMF.ino
+
+#define BUTTON_PIN 21       // Physical button (optional)
+#define RELAY_PIN  18       // Relay output (optional)
+```
+
+### Pin Details
+
+| Pin | Function | Type | Description |
+|-----|----------|------|-------------|
+| **GPIO21** | Button Input | INPUT_PULLUP | Physical postpone button (optional) |
+| **GPIO18** | Relay Output | OUTPUT | Relay control (optional, Max 5V 30mA) |
+
+### ⚠️ GPIO Critical Notes
+
+1. **GPIO21 (Button):**
+   - In `INPUT_PULLUP` mode
+   - Pulls to GND when button is pressed
+   - No external pull-up resistor needed
+   - Pin can be left empty if not using physical button (virtual button will be used)
+
+2. **GPIO18 (Relay):**
+   - **MAXIMUM 5V 30mA** - Exceeding this will damage ESP32-C6!
+   - Use **transistor driver** for high current relays (BC547, 2N2222 etc.)
+   - Pin can be left empty if not using relay
+
+3. **Pins NOT to Use:**
+   - GPIO0, GPIO8, GPIO9: Boot and JTAG pins
+   - Can create conflicts, do not use
+
+### Pin Modification
+
+If you want to use different pins, in `SmartKraft_DMF.ino`:
+
+```cpp
+#define BUTTON_PIN 21  // Your desired pin number
+#define RELAY_PIN  18  // Your desired pin number
+```
+
+**Then:**
+```cpp
+void setup() {
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(RELAY_PIN, OUTPUT);
+}
+```
+
+---
+
+## 🚨 Critical Notes and Common Errors
+
+### ❌ ISSUE 1: Bootloop - Continuous Reset
+
+**Cause:**
+- Wrong partition scheme selected
+- 2MB APP partition selected (doesn't fit in 4MB flash)
+
+**Solution:**
+- Select "SmartKraft OTA (1.5MB APP/1MB SPIFFS)"
+- Manually add partition scheme (instructions above)
+- If you won't use mail integration and only trigger URL without uploading files, you can select 2MB APP without SPIFFS area.
+
+### ❌ ISSUE 2: "Sketch too large" Error
+
+**Cause:**
+- Code size exceeds 1.5MB
+- Too many debug outputs
+
+**Solution:**
+```
+Tools → Core Debug Level → "None"
+Tools → Optimize → "Optimize for size (-Os)"
+```
+
+### ❌ ISSUE 3: SPIFFS Mount Failed
+
+**Cause:**
+- SPIFFS not formatted on first upload
+- Partition scheme doesn't include SPIFFS
+
+**Solution:**
+```cpp
+// SPIFFS.format() is called on first upload (present in code)
+// Manual format:
+SPIFFS.format();
+```
+
+### ❌ ISSUE 4: OTA Update Not Working
+
+**Cause:**
+- No app1 partition
+- Wrong GitHub URL
+- No WiFi connection
+
+**Solution:**
+- Use dual partition scheme
+- Check GitHub URL in `network_manager.cpp`
+- Verify WiFi connection
+
+### ❌ ISSUE 5: Mail Not Sending
+
+**Cause:**
+- ESP_Mail_Client library missing/wrong version
+- Wrong SMTP settings
+- Watchdog timeout (long mail sending process//~100KB/Second)
+
+**Solution:**
+- Use Mobizt ESP_Mail_Client v3.4.0+
+- Test SMTP settings
+- Increase watchdog timeout (present in code)
+
+### ❌ ISSUE 6: Web Interface Not Opening
+
+**Cause:**
+- No SPIFFS files
+- No WiFi connection
+- Wrong IP address
+
+**Solution:**
+- Check IP address from Serial Monitor
+- Verify SPIFFS is properly mounted
+- Use `192.168.4.1` in AP mode
+
+---
+
+## 🔨 First Compilation and Upload
+
+### Step 1: Board Settings
+
+```
+Tools → Board → ESP32 Arduino → XIAO_ESP32C6
+Tools → Partition Scheme → SmartKraft OTA (1.5MB APP/1MB SPIFFS)
+Tools → Flash Size → 4MB
+Tools → Flash Mode → QIO
+Tools → Flash Frequency → 80MHz
+Tools → Upload Speed → 921600
+Tools → Core Debug Level → None (or Error)
+```
+
+### Step 2: Port Selection
+
+```
+Tools → Port → (COM port where your ESP32-C6 is connected)
+```
+
+### Step 3: Compilation (Verify)
+
+```
+Sketch → Verify/Compile
+```
+
+**Successful compilation output:**
+```
+Sketch uses XXXXX bytes (XX%) of program storage space.
+Global variables use XXXXX bytes (XX%) of dynamic memory.
+```
+
+**⚠️ If program storage exceeds 90%:**
+- Remove unnecessary debug code
+- Core Debug Level → None
+- Optimize → Size
+
+### Step 4: Upload
+
+```
+Sketch → Upload
+```
+
+**First upload time:** ~30-60 seconds
+
+### Step 5: Serial Monitor Check
+
+```
+Tools → Serial Monitor → 115200 baud
+```
+
+**Successful boot output:**
+```
+SmartKraft DMF v1.0.0
+[WiFi] AP mode active: SmartKraft-DMF
+[SPIFFS] File system initialized
+[Web] Server started: 192.168.4.1
+[OTA] Automatic update active
+[READY] System ready
+```
+
+---
+
+## 🔄 OTA Update Configuration
+
+### GitHub Repository Setup
+
+In `network_manager.cpp` file:
+
+```cpp
+const char* GITHUB_REPO_OWNER = "smrtkrft";           // Your GitHub username
+const char* GITHUB_REPO_NAME = "DMF_protocol";        // Your repository name
+const char* GITHUB_FIRMWARE_FILE = "firmware.bin";    // Release asset name
+```
+
+### Firmware Binary Creation
+
+After compiling with Arduino IDE:
+
+**Windows:**
+```
+%TEMP%\arduino\sketches\[sketch-folder]\SmartKraft_DMF.ino.bin
+```
+
+**Linux/Mac:**
+```
+/tmp/arduino/sketches/[sketch-folder]/SmartKraft_DMF.ino.bin
+```
+
+Upload this file to GitHub Release as `firmware.bin`.
+
+### GitHub Release Creation
+
+1. GitHub repository → Releases → Create a new release
+2. Tag: `v1.0.1` (version number)
+3. Title: "SmartKraft DMF v1.0.1"
+4. Upload: `firmware.bin` file
+5. Publish release
+
+### OTA Check
+
+Device automatically checks every 24 hours. For manual check, press "OTA Update Check" button from web interface.
+
+### OTA Update Process
+
+```
+1. Latest release is checked from GitHub API
+2. Version number is compared
+3. If new version exists, firmware.bin is downloaded
+4. Written to app1 partition
+5. Boot partition is changed
+6. Device restarts
+7. New firmware boots from app1
+```
+
+**⚠️ During OTA:**
+- Do not cut device power
+- Do not disconnect WiFi
+- Process takes ~1-2 minutes
+
+---
+
+## 🛠️ Development Tips
+
+### Debug Mode
+
+During development:
+```
+Tools → Core Debug Level → Debug
+```
+
+For production:
+```
+Tools → Core Debug Level → None
+```
+
+### Serial Monitor Commands
+
+Serial commands available in code:
+```
+status     - Show system status
+reset      - Reset settings
+restart    - Restart device
+format     - Format SPIFFS (careful!)
+```
+
+### Memory Optimization
+
+```cpp
+// Use F() macro instead of String
+Serial.println(F("Static text"));  // ✅ Saves SRAM
+Serial.println("Static text");      // ❌ Uses SRAM
+
+// Use PROGMEM
+const char text[] PROGMEM = "Long text...";
+```
+
+### Watchdog Timer
+
+For long operations like mail sending:
+```cpp
+esp_task_wdt_reset();  // Reset watchdog
+```
+
+---
+
+## 📞 Support and Contribution
+
+- **Issues:** https://github.com/smrtkrft/DMF_protocol/issues
+- **Pull Requests:** Welcome!
+- **License:** AGPL-3.0 (you must share forks and modifications)
+
+---
+
+## ✅ Quick Checklist
+
+Check before uploading:
+
+- [ ] ESP32 Board Package v3.0.0+ installed
+- [ ] ArduinoJson v6.x installed (NOT v7!)
+- [ ] ESP_Mail_Client (Mobizt) installed
+- [ ] Board: XIAO_ESP32C6 selected
+- [ ] Partition: SmartKraft OTA selected
+- [ ] Flash Size: 4MB
+- [ ] Port correctly selected
+- [ ] Libraries compile successfully
+- [ ] GPIO pins match hardware
 
 ---
 
