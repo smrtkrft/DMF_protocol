@@ -2,10 +2,10 @@
 
 ## ❌ **Kritik Eksikler**
 
-1. **OTA Update yok** - Firmware güncelleme sistemi eksik
+eklendi // 1. **OTA Update yok** - Firmware güncelleme sistemi eksik
 2. **HTTPS/SSL yok** - Mail güvenliği zayıf  
 3. **Config backup/restore** - Ayar yedekleme eksik
-4. **Error recovery** - Hata durumunda otomatik düzelme yok
+4. eklendi //**Error recovery** - Hata durumunda otomatik düzelme yok
 5. **Memory leak koruması** - Heap monitoring var ama auto-cleanup yok
 
 ## ⚠️ **Güvenlik Sorunları**
