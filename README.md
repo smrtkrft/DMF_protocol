@@ -9,7 +9,7 @@
 
 ### 🚨 SmartKraft DMF Protocol
 
-**Dead Man's Function (DMF) Protocol** is an automatic message transmission system that requires periodic postponement actions. If postponement is not performed, your pre-prepared critical messages and important files are automatically sent to designated trusted contacts.
+**DMF Protocol** is an automatic message transmission system that requires periodic postponement actions. If postponement is not performed, your pre-prepared critical messages and important files are automatically sent to designated trusted contacts.
 
 The system guarantees delivery of vital information, passwords, documents, or instructions to trusted individuals in emergency situations. It provides uninterrupted automatic transmission through a three-tier WiFi infrastructure, programmable alarm system, and relay control.
 
@@ -136,7 +136,7 @@ See [LICENSE](LICENSE) file for details.
 
 ### 🚨 SmartKraft DMF-Protokoll
 
-**Dead Man's Function (DMF) Protokoll** ist ein automatisches Nachrichtenübermittlungssystem, das regelmäßige Verlängerungsaktionen erfordert. Wenn keine Verlängerung durchgeführt wird, werden Ihre vorbereiteten kritischen Nachrichten und wichtigen Dateien automatisch an festgelegte Vertrauenspersonen gesendet.
+**DMF Protokoll** ist ein automatisches Nachrichtenübermittlungssystem, das regelmäßige Verlängerungsaktionen erfordert. Wenn keine Verlängerung durchgeführt wird, werden Ihre vorbereiteten kritischen Nachrichten und wichtigen Dateien automatisch an festgelegte Vertrauenspersonen gesendet.
 
 Das System garantiert die Zustellung lebenswichtiger Informationen, Passwörter, Dokumente oder Anweisungen an Vertrauenspersonen in Notfallsituationen. Es bietet unterbrechungsfreie automatische Übertragung durch eine dreistufige WiFi-Infrastruktur, programmierbares Alarmsystem und Relaissteuerung.
 
@@ -263,7 +263,7 @@ Siehe [LICENSE](LICENSE) Datei für Details.
 
 ### 🚨 SmartKraft DMF Protokolü
 
-**Dead Man's Function (DMF) Protokolü**, belirli aralıklarla erteleme işlemi yapılmasını gerektiren otomatik mesaj iletim sistemidir. Erteleme yapılmazsa, önceden hazırladığınız kritik mesajlar ve önemli dosyalar belirlediğiniz güvenilir kişilere otomatik olarak gönderilir. 
+**DMF Protokolü**, belirli aralıklarla erteleme işlemi yapılmasını gerektiren otomatik mesaj iletim sistemidir. Erteleme yapılmazsa, önceden hazırladığınız kritik mesajlar ve önemli dosyalar belirlediğiniz güvenilir kişilere otomatik olarak gönderilir. 
 
 Sistem, acil durumlarda hayati bilgilerin, şifrelerin, belgelerin veya talimatların güvenilir kişilere ulaşmasını garanti eder. Üç katmanlı WiFi altyapısı, programlanabilir alarm sistemi ve röle kontrolü ile kesintisiz otomatik iletim sağlar.
 
