@@ -309,6 +309,7 @@ void DMFNetworkManager::performOTAUpdate(String latestVersion) {
 
     HTTPClient http;
     http.setTimeout(60000); // 60 saniye timeout (firmware indirme için)
+    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // GitHub redirect'lerini takip et
     
     // Dinamik URL oluştur: /releases/download/{tag_name}/SmartKraft_DMF.ino.bin
     String firmwareURL = "https://github.com/smrtkrft/DMF_protocol/releases/download/" 

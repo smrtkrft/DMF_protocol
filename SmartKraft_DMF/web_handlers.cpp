@@ -7,7 +7,7 @@
 
 // Firmware version (main .ino'dan import)
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "v1.0.1"
+#define FIRMWARE_VERSION "v1.0.3"
 #endif
 
 // i18n language files
@@ -108,7 +108,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                         <input type="number" id="timerAlarms" min="0" max="10" value="3">
                     </div>
                 </div>
-                <button onclick="saveTimerSettings()" data-i18n="buttons.save">Save</button>
+                
+                <div style="display:flex; justify-content:center; margin-top:16px;">
+                    <button onclick="saveTimerSettings()" data-i18n="buttons.save" style="width:50%; min-width:200px;">Save</button>
+                </div>
 
                 <div class="section-title" data-i18n="alarm.sectionAlarms">Alarm Schedule</div>
                 <div class="list" id="alarmSchedule">-</div>
