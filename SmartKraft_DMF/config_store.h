@@ -124,6 +124,7 @@ struct TimerRuntime {
     uint32_t remainingSeconds = 0; // persisted fallback
     uint8_t nextAlarmIndex = 0;
     bool finalTriggered = false;
+    bool finalGroupsSent[MAX_MAIL_GROUPS] = {false, false, false}; // Her grubun gönderilme durumu
 };
 
 class ConfigStore {

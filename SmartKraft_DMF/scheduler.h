@@ -40,6 +40,7 @@ public:
 
     void acknowledgeAlarm(uint8_t alarmIndex);
     void acknowledgeFinal();
+    void updateRuntime(const TimerRuntime &newRuntime); // Runtime'ı güncelle (grup gönderim durumları için)
 
     const TimerSettings &settings() const { return currentSettings; }
     TimerRuntime runtimeState() const;

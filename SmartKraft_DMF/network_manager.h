@@ -28,6 +28,7 @@ public:
     std::vector<ScanResult> scanNetworks();
     
     bool connectToKnown();
+    bool checkForBetterNetwork(const String &currentSSID);
     
     // OTA Update Functions
     bool checkOTAUpdate(String currentVersion);

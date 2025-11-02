@@ -330,6 +330,14 @@ TimerRuntime ConfigStore::loadRuntime() const {
         runtime.remainingSeconds = doc["remainingSeconds"].as<uint32_t>();
         runtime.nextAlarmIndex = doc["nextAlarmIndex"].as<uint8_t>();
         runtime.finalTriggered = doc["finalTriggered"].as<bool>();
+        
+        // Grup gönderim durumlarını yükle
+        if (doc.containsKey("finalGroupsSent")) {
+            JsonArray groupsSent = doc["finalGroupsSent"];
+            for (uint8_t i = 0; i < MAX_MAIL_GROUPS && i < groupsSent.size(); ++i) {
+                runtime.finalGroupsSent[i] = groupsSent[i].as<bool>();
+            }
+        }
     }
     return runtime;
 }
@@ -342,6 +350,13 @@ void ConfigStore::saveRuntime(const TimerRuntime &runtime) {
     doc["remainingSeconds"] = runtime.remainingSeconds;
     doc["nextAlarmIndex"] = runtime.nextAlarmIndex;
     doc["finalTriggered"] = runtime.finalTriggered;
+    
+    // Grup gönderim durumlarını kaydet
+    JsonArray groupsSent = doc.createNestedArray("finalGroupsSent");
+    for (uint8_t i = 0; i < MAX_MAIL_GROUPS; ++i) {
+        groupsSent.add(runtime.finalGroupsSent[i]);
+    }
+    
     writeJson(RUNTIME_FILE, doc);
 }
 
@@ -390,10 +405,9 @@ void ConfigStore::writeJson(const char *path, const JsonDocument &doc) {
     size_t written = serializeJson(doc, file);
     file.close();
     
+    // Sadece hata durumunda log
     if (written == 0) {
         Serial.printf("[FS] UYARI: %s boş yazıldı\n", path);
-    } else {
-        Serial.printf("[FS] %s kaydedildi (%d byte)\n", path, written);
     }
 }
 

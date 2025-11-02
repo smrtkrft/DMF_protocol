@@ -1,5 +1,6 @@
 #include "network_manager.h"
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <Update.h>
 
 void DMFNetworkManager::begin(ConfigStore *storePtr) {
@@ -24,13 +25,8 @@ bool DMFNetworkManager::ensureConnected(bool escalateForAlarm) {
     if (isConnected()) {
         return true;
     }
-    if (connectToKnown()) {
-        return true;
-    }
-    if (escalateForAlarm && current.allowOpenNetworks) {
-        return connectToOpen();
-    }
-    return false;
+    // connectToKnown() artık açık ağları da deniyor (allowOpenNetworks ayarına göre)
+    return connectToKnown();
 }
 
 void DMFNetworkManager::disconnect() {
@@ -51,15 +47,119 @@ std::vector<DMFNetworkManager::ScanResult> DMFNetworkManager::scanNetworks() {
 }
 
 bool DMFNetworkManager::connectToKnown() {
-    // Primary network için daha kısa timeout (5 saniye)
-    if (current.primarySSID.length() > 0 && connectTo(current.primarySSID, current.primaryPassword, 5000)) {
-        return true;
+    Serial.println(F("[WiFi] Kayıtlı ağlar aranıyor..."));
+    
+    // Ağ taraması yap
+    auto networks = scanNetworks();
+    
+    if (networks.empty()) {
+        Serial.println(F("[WiFi] Hiç ağ bulunamadı"));
+        return false;
     }
-    // Secondary network için daha kısa timeout (5 saniye)
-    if (current.secondarySSID.length() > 0 && connectTo(current.secondarySSID, current.secondaryPassword, 5000)) {
-        return true;
+    
+    Serial.printf("[WiFi] %d ağ bulundu\n", networks.size());
+    
+    // Primary SSID'yi ara
+    if (current.primarySSID.length() > 0) {
+        for (auto &net : networks) {
+            if (net.ssid == current.primarySSID) {
+                Serial.printf("[WiFi] İlk SSID bulundu: %s (RSSI: %d)\n", net.ssid.c_str(), net.rssi);
+                if (connectTo(current.primarySSID, current.primaryPassword, 10000)) {
+                    return true;
+                }
+                break; // Bulundu ama bağlanılamadı, secondary'ye geç
+            }
+        }
     }
+    
+    // Secondary SSID'yi ara
+    if (current.secondarySSID.length() > 0) {
+        for (auto &net : networks) {
+            if (net.ssid == current.secondarySSID) {
+                Serial.printf("[WiFi] Yedek SSID bulundu: %s (RSSI: %d)\n", net.ssid.c_str(), net.rssi);
+                if (connectTo(current.secondarySSID, current.secondaryPassword, 10000)) {
+                    return true;
+                }
+                break;
+            }
+        }
+    }
+    
+    // Açık ağlar kontrolü (eğer izin varsa)
+    if (current.allowOpenNetworks) {
+        Serial.println(F("[WiFi] Açık ağlar aranıyor..."));
+        
+        // İnterneti olan ilk açık ağı bul
+        for (auto &net : networks) {
+            if (net.open) {
+                Serial.printf("[WiFi] Açık ağ deneniyor: %s (RSSI: %d)\n", net.ssid.c_str(), net.rssi);
+                if (connectTo(net.ssid, "", 8000)) {
+                    // İnternet testi
+                    if (testInternet(30000)) {
+                        Serial.println(F("[WiFi] ✓ Açık ağda internet erişimi doğrulandı"));
+                        return true;
+                    } else {
+                        Serial.println(F("[WiFi] ✗ İnternet yok, başka ağ deneniyor..."));
+                        WiFi.disconnect();
+                        delay(500); // Disconnect için kısa bekleme
+                        // Döngü devam eder, bir sonraki açık ağı dener
+                    }
+                }
+            }
+        }
+        
+        Serial.println(F("[WiFi] İnterneti olan açık ağ bulunamadı"));
+    } else {
+        Serial.println(F("[WiFi] ℹ Açık ağlar izni kapalı (Ayarlar > WiFi > Açık Ağlara İzin Ver)"));
+    }
+    
+    Serial.println(F("[WiFi] Bağlanılabilir ağ bulunamadı"));
     return false;
+}
+
+bool DMFNetworkManager::checkForBetterNetwork(const String &currentSSID) {
+    // Şu anda bağlı olduğumuz ağı kontrol et
+    if (currentSSID.isEmpty()) {
+        return false; // Bağlı değiliz
+    }
+    
+    // Eğer primary veya secondary SSID'ye bağlıysak, değiştirmeye gerek yok
+    if (currentSSID == current.primarySSID || currentSSID == current.secondarySSID) {
+        return false; // Zaten kayıtlı ağdayız
+    }
+    
+    // Açık bir ağa bağlıyız - kayıtlı ağlar mevcut mu kontrol et
+    Serial.printf("[WiFi] Açık ağdayız (%s), kayıtlı ağlar kontrol ediliyor...\n", currentSSID.c_str());
+    
+    auto networks = scanNetworks();
+    
+    // Primary SSID var mı?
+    if (current.primarySSID.length() > 0) {
+        for (auto &net : networks) {
+            if (net.ssid == current.primarySSID) {
+                Serial.printf("[WiFi] ✓ Primary SSID bulundu: %s (RSSI: %d)\n", net.ssid.c_str(), net.rssi);
+                return true; // Geçiş yap
+            }
+        }
+    }
+    
+    // Secondary SSID var mı?
+    if (current.secondarySSID.length() > 0) {
+        for (auto &net : networks) {
+            if (net.ssid == current.secondarySSID) {
+                Serial.printf("[WiFi] ✓ Secondary SSID bulundu: %s (RSSI: %d)\n", net.ssid.c_str(), net.rssi);
+                return true; // Geçiş yap
+            }
+        }
+    }
+    
+    // Açık ağdayız ve internet var mı kontrol et
+    if (!testInternet(10000)) {
+        Serial.println(F("[WiFi] Açık ağda internet yok, başka ağ aranacak"));
+        return true; // Başka ağ dene
+    }
+    
+    return false; // Her şey yolunda, kalsın
 }
 
 bool DMFNetworkManager::connectTo(const String &ssid, const String &password, uint32_t timeoutMs) {
@@ -244,7 +344,20 @@ bool DMFNetworkManager::checkOTAUpdate(String currentVersion) {
         Serial.println(F("[OTA] WiFi bağlı değil, güncelleme kontrolü atlandı"));
         return false;
     }
+    
+    // İnternet bağlantısını test et
+    Serial.println(F("[OTA] İnternet bağlantısı test ediliyor..."));
+    IPAddress testIP;
+    if (WiFi.hostByName("api.github.com", testIP) != 1) {
+        Serial.println(F("[OTA] ✗ DNS hatası: api.github.com çözümlenemedi"));
+        Serial.println(F("[OTA] ℹ İnternet bağlantısı yok veya DNS çalışmıyor"));
+        return false;
+    }
+    Serial.printf("[OTA] ✓ DNS başarılı: api.github.com → %s\n", testIP.toString().c_str());
 
+    WiFiClientSecure client;
+    client.setInsecure(); // Sertifika doğrulamasını atla (GitHub güvenilir kaynak)
+    
     HTTPClient http;
     http.setTimeout(15000); // 15 saniye timeout (GitHub API için)
     
@@ -252,7 +365,7 @@ bool DMFNetworkManager::checkOTAUpdate(String currentVersion) {
     const char* versionURL = "https://api.github.com/repos/smrtkrft/DMF_protocol/releases/latest";
     
     Serial.printf("[OTA] Versiyon kontrolü: %s\n", versionURL);
-    http.begin(versionURL);
+    http.begin(client, versionURL);
     http.addHeader("User-Agent", "SmartKraft-DMF");
     http.addHeader("Accept", "application/vnd.github.v3+json"); // GitHub API v3
     
@@ -298,9 +411,17 @@ bool DMFNetworkManager::checkOTAUpdate(String currentVersion) {
     } else {
         if (httpCode == 403) {
             Serial.println(F("[OTA] ✗ GitHub API rate limit aşıldı (403 Forbidden)"));
-            Serial.println(F("[OTA] ℹ Lütfen 1 saat sonra tekrar deneyin veya GitHub token kullanın"));
+            Serial.println(F("[OTA] ℹ Lütfen 1 saat sonra tekrar deneyin"));
         } else if (httpCode == 404) {
             Serial.println(F("[OTA] ✗ Release bulunamadı (404 Not Found)"));
+        } else if (httpCode == -1) {
+            Serial.println(F("[OTA] ✗ Bağlantı hatası: GitHub API'ye ulaşılamıyor"));
+            Serial.println(F("[OTA] ℹ Olası sebepler:"));
+            Serial.println(F("[OTA]   - İnternet bağlantısı yok"));
+            Serial.println(F("[OTA]   - Firewall/güvenlik duvarı engellemesi"));
+            Serial.println(F("[OTA]   - HTTPS sertifika sorunu"));
+        } else if (httpCode == -11) {
+            Serial.println(F("[OTA] ✗ Timeout: GitHub API yanıt vermiyor"));
         } else {
             Serial.printf("[OTA] ✗ HTTP hatası: %d\n", httpCode);
         }
@@ -315,6 +436,9 @@ void DMFNetworkManager::performOTAUpdate(String latestVersion) {
         return;
     }
 
+    WiFiClientSecure client;
+    client.setInsecure(); // Sertifika doğrulamasını atla (GitHub güvenilir kaynak)
+    
     HTTPClient http;
     http.setTimeout(60000); // 60 saniye timeout (firmware indirme için)
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS); // GitHub redirect'lerini takip et
@@ -324,7 +448,7 @@ void DMFNetworkManager::performOTAUpdate(String latestVersion) {
                          + latestVersion + "/SmartKraft_DMF.ino.bin";
     
     Serial.printf("[OTA] Firmware indiriliyor: %s\n", firmwareURL.c_str());
-    http.begin(firmwareURL);
+    http.begin(client, firmwareURL);
     
     int httpCode = http.GET();
     

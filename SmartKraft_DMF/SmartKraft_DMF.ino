@@ -5,7 +5,6 @@
 #include <LittleFS.h>
 #include <esp_system.h>
 #include <DNSServer.h>
-#include <esp_task_wdt.h>  // Watchdog timer için
 #include <esp_pm.h>        // Güç yönetimi için
 #include <esp_wifi.h>      // WiFi güç yönetimi için
 
@@ -14,7 +13,6 @@
 #include "network_manager.h"
 #include "mail_functions.h"
 #include "web_handlers.h"
-#include "test_functions.h"
 
 // ⚠️ Debug Seviyeleri (performans için)
 // 0 = Sadece kritik hatalar
@@ -38,7 +36,8 @@ constexpr uint8_t BUTTON_PIN = 21;   // D3 -> GPIO21
 constexpr uint8_t RELAY_PIN = 18;    // D10 -> GPIO18
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 200;
 constexpr uint32_t STATUS_PERSIST_INTERVAL_MS = 60000;
-constexpr uint32_t OTA_CHECK_INTERVAL_MS = 120000; // 2 dakika (30 req/saat - güvenli)
+constexpr uint32_t OTA_CHECK_INTERVAL_MS = 300000; // 5 dakika (12 req/saat - güvenli)
+constexpr uint32_t PERIODIC_RESTART_INTERVAL_MS = 12UL * 60UL * 60UL * 1000UL; // 12 saat
 
 
 ConfigStore configStore;
@@ -47,7 +46,6 @@ DMFNetworkManager networkManager;
 MailAgent mailAgent;
 WebServer webServer(80);
 WebInterface webUI;
-TestInterface testInterface;
 DNSServer dnsServer;
 
 bool relayLatched = false;
@@ -57,6 +55,7 @@ unsigned long lastPersist = 0;
 unsigned long finalMailSentTime = 0; // Final mail gönderilme zamanı
 bool finalMailSent = false; // Final mail gönderildi mi?
 unsigned long lastOTACheck = 0; // OTA kontrol zamanı
+unsigned long bootTime = 0; // Cihaz başlangıç zamanı (periyodik restart için)
 
 String deviceId;
 
@@ -81,9 +80,6 @@ void initHardware() {
     pinMode(RELAY_PIN, OUTPUT);
     digitalWrite(RELAY_PIN, LOW);
     relayLatched = false;
-    
-    DEBUG_PRINT(1, "[Init] BUTTON: D3 (GPIO%d)\n", BUTTON_PIN);
-    DEBUG_PRINT(1, "[Init] RELAY: D10 (GPIO%d)\n", RELAY_PIN);
 }
 
 void latchRelay(bool state) {
@@ -100,12 +96,7 @@ void resetTimerFromButton() {
     // Reboot flag'ini sıfırla
     finalMailSent = false;
     finalMailSentTime = 0;
-    
-    DEBUG_PRINTLN(1, F("[Timer] Fiziksel/sanal buton ile geri sayım yeniden başlatıldı"));
 }
-
-// performGetRequest() fonksiyonu KALDIRILDI
-// URL tetikleme artık mail_functions.cpp içinde yapılıyor (güvenli + validation)
 
 void processAlarms() {
     uint8_t alarmIndex = 0;
@@ -115,18 +106,22 @@ void processAlarms() {
         Serial.printf("[Alarm] %u numaralı alarm tetiklendi\n", alarmIndex + 1);
         
         if (!networkManager.isConnected()) {
+            Serial.println(F("[Alarm] İnternet yok, bağlantı kuruluyor..."));
             networkManager.ensureConnected(true);
         }
         
         String error;
         if (!mailAgent.sendWarning(alarmIndex, snap, error)) {
             Serial.printf("[Mail] Uyarı maili gönderilemedi: %s\n", error.c_str());
+            Serial.println(F("[Mail] ℹ Alarm beklemeye alındı, internet bağlantısı kurulunca tekrar denenecek"));
+            // ❌ acknowledgeAlarm() ÇAĞRILMIYOR - Mail başarısız olduğu için
+            // Alarm bir sonraki loop'ta tekrar kontrol edilecek
         } else {
-            Serial.println(F("[Mail] Uyarı maili gönderildi"));
+            Serial.println(F("[Mail] ✓ Uyarı maili gönderildi"));
+            scheduler.acknowledgeAlarm(alarmIndex); // ✅ Sadece başarılı olunca işaretle
+            scheduler.persist();
         }
         
-        scheduler.acknowledgeAlarm(alarmIndex);
-        scheduler.persist();
         yield();
     }
 
@@ -136,14 +131,24 @@ void processAlarms() {
         latchRelay(true);
         
         if (!networkManager.isConnected()) {
+            Serial.println(F("[Final] İnternet yok, bağlantı kuruluyor..."));
             networkManager.ensureConnected(true);
         }
         
+        // Runtime'ı al (grup gönderim durumları için)
+        TimerRuntime runtime = scheduler.runtimeState();
+        
         String error;
-        if (!mailAgent.sendFinal(snap, error)) {
+        if (!mailAgent.sendFinal(snap, runtime, error)) {
             Serial.printf("[Mail] Final maili gönderilemedi: %s\n", error.c_str());
+            Serial.println(F("[Mail] ℹ Final mail beklemeye alındı, internet bağlantısı kurulunca tekrar denenecek"));
+            // Runtime değişmiş olabilir (bazı gruplar gönderilmiş), kaydet
+            scheduler.updateRuntime(runtime);
+            // ❌ acknowledgeFinal() ÇAĞRILMIYOR - Tüm gruplar başarılı olana kadar
         } else {
-            Serial.println(F("[Mail] Final maili gönderildi"));
+            Serial.println(F("[Mail] ✓ Final maili gönderildi"));
+            scheduler.acknowledgeFinal(); // ✅ Tüm gruplar başarılı
+            scheduler.persist();
             
             if (!finalMailSent) {
                 finalMailSent = true;
@@ -152,8 +157,6 @@ void processAlarms() {
             }
         }
         
-        scheduler.acknowledgeFinal();
-        scheduler.persist();
         yield();
     }
 }
@@ -184,47 +187,27 @@ void setup() {
     Serial.printf("[Cihaz] ID: %s\n", deviceId.c_str());
     randomSeed(esp_random());
 
-    // ⚠️ UYKU MODUNU TAMAMEN DEVRE DIŞI BIRAK
-    Serial.println(F("[Power] Güç yönetimi devre dışı bırakılıyor..."));
-    
-    // ESP32-C6: CPU otomatik güç yönetimini kapat (light sleep/modem sleep engellenir)
+    // CPU güç yönetimini kapat (light sleep/modem sleep engellenir)
     esp_pm_config_t pm_config;
-    pm_config.max_freq_mhz = 160;  // Maksimum CPU frekansı
-    pm_config.min_freq_mhz = 160;  // Minimum CPU frekansı (AYNI değer = frekans düşürme YOK)
-    pm_config.light_sleep_enable = false;  // Light sleep KAPALI
-    
-    esp_err_t pm_result = esp_pm_configure(&pm_config);
-    if (pm_result == ESP_OK) {
-        Serial.println(F("[Power] ✓ CPU güç yönetimi devre dışı (160MHz sabit)"));
-    } else {
-        Serial.printf("[Power] ✗ PM config hatası: 0x%x\n", pm_result);
-    }
+    pm_config.max_freq_mhz = 160;
+    pm_config.min_freq_mhz = 160;
+    pm_config.light_sleep_enable = false;
+    esp_pm_configure(&pm_config);
 
-    Serial.println(F("[Init] Donanım başlatılıyor..."));
     initHardware();
 
-    Serial.println(F("[Init] Dosya sistemi başlatılıyor..."));
     if (!configStore.begin()) {
         Serial.println(F("[FS] Dosya sistemi başlatılamadı"));
     }
 
-    Serial.println(F("[Init] Scheduler başlatılıyor..."));
     scheduler.begin(&configStore);
-    
-    Serial.println(F("[Init] Network manager başlatılıyor..."));
     networkManager.begin(&configStore);
-    
-    Serial.println(F("[Init] Mail agent başlatılıyor..."));
     mailAgent.begin(&configStore, &networkManager, deviceId);
     
-    Serial.println(F("[Init] Web sunucusu başlatılıyor..."));
     String apName = generateAPName();
     webUI.begin(&webServer, &configStore, &scheduler, &mailAgent, &networkManager, deviceId, &dnsServer, apName);
-    
-    Serial.println(F("[Init] Test arayüzü başlatılıyor..."));
-    testInterface.begin(&scheduler, &mailAgent);
 
-    Serial.println(F("[Init] Başlangıç tamamlandı, WiFi devre dışı"));
+    Serial.println(F("[Init] Sistem başlatma tamamlandı"));
     
     ScheduleSnapshot initialSnap = scheduler.snapshot();
 
@@ -244,29 +227,18 @@ void setup() {
     lastButtonState = digitalRead(BUTTON_PIN);
     lastButtonChange = millis();
     lastPersist = millis();
-    lastOTACheck = millis(); // OTA kontrolü için
+    lastOTACheck = millis();
+    bootTime = millis();
     
-    Serial.println(F("[Init] WebServer başlatılıyor..."));
+    // WebServer başlat (içinde WiFi bağlantısı da yapılıyor)
     webUI.startServer();
     
-    // ⚠️ ESP32-C6: WiFi GÜÇÜNÜ MAKSIMUMA ÇEK VE UYKU MODUNU DEVRE DIŞI BIRAK
-    WiFi.setSleep(WIFI_PS_NONE);  // Arduino WiFi kütüphanesi: Uyku modu KAPALI
+    // WiFi optimizasyonları
+    WiFi.setSleep(WIFI_PS_NONE);
+    esp_wifi_set_ps(WIFI_PS_NONE);
+    esp_wifi_set_max_tx_power(84);
     
-    esp_err_t ps_result = esp_wifi_set_ps(WIFI_PS_NONE);  // ESP-IDF seviyesi: WiFi güç tasarrufu KAPALI
-    if (ps_result == ESP_OK) {
-        Serial.println(F("[WiFi] ✓ Güç tasarrufu KAPALI - WiFi sürekli aktif"));
-    } else {
-        Serial.printf("[WiFi] ✗ PS config hatası: 0x%x\n", ps_result);
-    }
-    
-    // ESP32-C6: Ek WiFi optimizasyonları
-    esp_wifi_set_max_tx_power(84);  // Maksimum TX gücü (84 = 21dBm)
-    Serial.println(F("[WiFi] ✓ TX gücü maksimuma ayarlandı (21dBm)"));
-    
-    // HTTP Server keepalive varsayılan olarak AÇIK (manuel ayar gerekmiyor)
-    Serial.println(F("[WebServer] ✓ HTTP Keep-Alive varsayılan olarak aktif"));
-    
-    Serial.println(F("[Init] Sistem hazır!"));
+    Serial.println(F("[Init] ✅ Sistem hazır - WiFi aktif!"));
 }
 
 void loop() {
@@ -286,11 +258,6 @@ void loop() {
         processAlarms();
         lastLoop = millis();
         yield();  // Uzun işlemlerden sonra yield
-    }
-    
-    // Test interface'i daha az sıklıkta - her 1 saniyede bir
-    if (loopCounter % 100 == 0) { // 10ms x 100 = 1s
-        testInterface.processSerial();
     }
 
     // ⚠️ YENİ: Final mail gönderildikten 60 saniye sonra reboot
@@ -325,13 +292,35 @@ void loop() {
         lastPersist = millis();
     }
     
-    // ⚠️ YENİ: OTA kontrol - her 5 dakikada bir (üretim) veya 30 saniyede bir (test)
+    // ⚠️ YENİ: OTA kontrol - her 2 dakikada bir
     if (millis() - lastOTACheck > OTA_CHECK_INTERVAL_MS) {
         if (networkManager.isConnected()) {
             DEBUG_PRINTLN(2, F("[OTA] Version kontrolü yapılıyor..."));
             networkManager.checkOTAUpdate(FIRMWARE_VERSION);
         }
         lastOTACheck = millis();
+    }
+    
+    // ⚠️ YENİ: Periyodik restart - 12 saatte bir
+    unsigned long uptime = millis() - bootTime;
+    if (uptime >= PERIODIC_RESTART_INTERVAL_MS) {
+        Serial.println(F(""));
+        Serial.println(F("========================================"));
+        Serial.println(F("[Restart] 12 saat doldu - periyodik restart"));
+        Serial.println(F("[Restart] Cihaz yeniden başlatılıyor..."));
+        Serial.println(F("========================================"));
+        scheduler.persist(); // Son durumu kaydet
+        delay(1000);
+        ESP.restart();
+    }
+    
+    // Her 1 saatte bir uptime bilgisi ver
+    static unsigned long lastUptimeReport = 0;
+    if (millis() - lastUptimeReport >= 3600000) { // 1 saat
+        unsigned long hours = uptime / 3600000;
+        unsigned long minutes = (uptime % 3600000) / 60000;
+        Serial.printf("[System] Uptime: %lu saat %lu dakika\n", hours, minutes);
+        lastUptimeReport = millis();
     }
     
     // Sistem responsive tutmak için

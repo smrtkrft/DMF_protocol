@@ -150,12 +150,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                                 <label data-i18n="mail.username">Username</label>
                                 <input type="email" id="smtpUsername" data-i18n="mail.usernamePlaceholder" placeholder="e.g., user@example.com">
                             </div>
-                            <div class="form-group">
-                                <label id="passwordLabel" data-i18n="mail.password">Password</label>
-                                <input type="password" id="smtpPassword" data-i18n="mail.passwordPlaceholder" placeholder="SMTP password or app-specific password">
-                            </div>
                         </div>
-                        <div style="font-size:0.7em; color:#666; font-style:italic; margin-top:8px;">
+                        <div class="form-group" style="max-width:600px; margin:12px auto 0 auto;">
+                            <label id="passwordLabel" data-i18n="mail.password">Password</label>
+                            <input type="password" id="smtpPassword" data-i18n="mail.passwordPlaceholder" placeholder="SMTP password or app-specific password">
+                        </div>
+                        <div style="font-size:0.7em; color:#666; font-style:italic; margin-top:8px; text-align:center;">
                             <span id="passwordHelp" data-i18n="mail.portHelp">Only port 465 (SSL/TLS) is supported</span>
                         </div>
                     </div>
@@ -295,6 +295,18 @@ This is a SmartKraft DMF early warning message.</textarea>
                         <div class="form-group checkbox" style="margin-bottom:16px;">
                             <input type="checkbox" id="apModeEnabled" checked>
                             <label for="apModeEnabled" data-i18n="wifi.modeAP">Access Point (AP) Mode</label>
+                        </div>
+                        
+                        <!-- AP Mode Açıklama -->
+                        <div style="background:#f8f9fa;border-left:3px solid #007bff;padding:12px;margin-top:8px;border-radius:4px;">
+                            <div style="font-size:13px;color:#495057;margin-bottom:8px;" data-i18n="wifi.apDescription">
+                                Creates a WiFi network that you can connect to for configuration. Useful when your main network is unavailable.
+                            </div>
+                            <div style="font-size:12px;color:#6c757d;">
+                                <strong data-i18n="wifi.apNetworkName">Network Name:</strong> <code style="background:#e9ecef;padding:2px 6px;border-radius:3px;">SmartKraft-DMF<span id="apChipId">XXXX</span></code><br>
+                                <strong data-i18n="wifi.apPassword">Password:</strong> <span data-i18n="wifi.apPasswordNone">None (Open Network)</span><br>
+                                <strong data-i18n="wifi.apIPAddress">IP Address:</strong> <code style="background:#e9ecef;padding:2px 6px;border-radius:3px;">192.168.4.1</code>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1116,6 +1128,14 @@ This is a SmartKraft DMF early warning message.</textarea>
                 document.getElementById('wifiAllowOpen').checked = !!w.allowOpenNetworks;
                 document.getElementById('apModeEnabled').checked = !!w.apModeEnabled;
                 document.getElementById('primaryStaticEnabled').checked = !!w.primaryStaticEnabled;
+                
+                // AP Chip ID'yi göster (cihaz ID'den son 4 karakter)
+                const status = await api('/api/status');
+                if (status && status.deviceId) {
+                    const chipId = status.deviceId.split('-').pop(); // "SmartKraft DMF-7FFE" → "7FFE"
+                    const apChipIdEl = document.getElementById('apChipId');
+                    if (apChipIdEl) apChipIdEl.textContent = chipId || 'XXXX';
+                }
                 document.getElementById('secondaryStaticEnabled').checked = !!w.secondaryStaticEnabled;
             } catch (err) { console.error(err); }
         }
@@ -1704,9 +1724,6 @@ void WebInterface::begin(WebServer *srv,
                    uploadContext.reset();
                },
                [this]() { handleAttachmentUpload(); });
-
-    // WebServer başlatılmasını ertele - WiFi hazır olana kadar
-    Serial.println(F("[Web] Handler'lar tanımlandı, server.begin() ertelendi"));
 }
 
 void WebInterface::startServer() {
@@ -1731,18 +1748,25 @@ void WebInterface::startServer() {
     }
     
     // AP modu ayarına göre karar ver
-    bool shouldStartAP = wifiConfig.apModeEnabled;
+    bool shouldStartAP = false;
     
-    // GÜVENLİK: Sadece AP mode açıksa VE STA bağlantısı başarısızsa AP'yi aç
-    // İlk kurulumda (hiç WiFi ayarı yoksa) hemen AP aç
+    // Mantık:
+    // 1. İlk kurulum (kayıtlı WiFi yok) → AP zorla aç
+    // 2. Kayıtlı WiFi var ama bağlanamadı VE kullanıcı AP'yi açmış → AP aç
+    // 3. Kayıtlı WiFi var ama bağlanamadı VE kullanıcı AP'yi kapatmış → AP AÇMA
+    
     if (!hasStoredWiFi) {
         shouldStartAP = true;
         Serial.println(F("[WiFi] İlk kurulum - AP modu zorla açılıyor"));
     } else if (!staConnected && wifiConfig.apModeEnabled) {
-        Serial.println(F("[WiFi] STA başarısız ve AP etkin - AP modu açılıyor"));
+        shouldStartAP = true;
+        Serial.println(F("[WiFi] STA başarısız ve kullanıcı AP'yi etkinleştirmiş - AP modu açılıyor"));
     } else if (!staConnected && !wifiConfig.apModeEnabled) {
-        Serial.println(F("[WiFi] STA başarısız ama AP devre dışı - sadece STA modunda tekrar denenecek"));
         shouldStartAP = false;
+        Serial.println(F("[WiFi] STA başarısız ama kullanıcı AP'yi devre dışı bırakmış - AP AÇILMIYOR"));
+    } else if (staConnected && wifiConfig.apModeEnabled) {
+        shouldStartAP = true;
+        Serial.println(F("[WiFi] STA başarılı ve kullanıcı AP'yi etkinleştirmiş - Dual mode"));
     }
     
     // WiFi modunu ayarla
@@ -1764,19 +1788,14 @@ void WebInterface::startServer() {
     
     // AP modunu başlat (eğer gerekiyorsa)
     if (shouldStartAP) {
-        WiFi.softAP(apName.c_str(), "12345678"); // Dinamik AP ismi kullan
+        WiFi.softAP(apName.c_str()); // Şifresiz AP
         delay(500);
         
         // Captive portal için DNS server başlat
         if (dnsServer) {
             dnsServer->start(53, "*", WiFi.softAPIP());
-            Serial.println(F("[DNS] Captive portal DNS başlatıldı"));
         }
-        
-        Serial.printf("[Web] AP (%s) IP: %s\n", apName.c_str(), WiFi.softAPIP().toString().c_str());
     } else {
-        Serial.println(F("[Web] AP modu kapalı (kullanıcı ayarı)"));
-        
         // DNS sunucusunu durdur
         if (dnsServer) {
             dnsServer->stop();
@@ -1796,28 +1815,17 @@ void WebInterface::startServer() {
     // WebServer'ı başlat
     server->begin();
     
-    // ⚠️ ESP32-C6: WebServer performans optimizasyonları
-    // Not: HTTP Keep-Alive ve CORS varsayılan olarak ESP32 WebServer'da AÇIK
-    Serial.println(F("[Web] HTTP Keep-Alive varsayılan olarak aktif"));
+    // WiFi optimizasyonları
+    WiFi.setSleep(WIFI_PS_NONE);
+    esp_wifi_set_ps(WIFI_PS_NONE);
     
-    // ⚠️ WiFi GÜÇÜNÜ MAKSIMUMA ÇEK VE UYKU MODUNU TAMAMEN DEVRE DIŞI BIRAK
-    WiFi.setSleep(WIFI_PS_NONE);  // Arduino API
-    esp_wifi_set_ps(WIFI_PS_NONE);  // ESP-IDF seviyesi
-    Serial.println(F("[Web] WiFi power save: NONE (Uyku modu KAPALI)"));
-    
+    // Başlangıç log
+    if (shouldStartAP) {
+        Serial.printf("[Web] AP: %s (IP: %s)\n", apName.c_str(), WiFi.softAPIP().toString().c_str());
+    }
     if (staConnected) {
         Serial.printf("[Web] STA IP: %s\n", WiFi.localIP().toString().c_str());
     }
-    
-    if (shouldStartAP && staConnected) {
-        Serial.println(F("[Web] Dual mode aktif (AP + STA)"));
-    } else if (shouldStartAP && !staConnected) {
-        Serial.println(F("[Web] Sadece AP modunda"));
-    } else if (!shouldStartAP && staConnected) {
-        Serial.println(F("[Web] Sadece STA modunda (AP kapalı)"));
-    }
-    
-    Serial.println(F("[Web] WebServer başlatıldı"));
 }
 
 void WebInterface::loop() {
@@ -1842,43 +1850,35 @@ void WebInterface::loop() {
     static bool wasConnected = false;
     static unsigned long lastDebugPrint = 0;
     
-    if (millis() - lastWiFiCheck > 30000) { // 30 saniyede bir kontrol
+    // WiFi bağlantı kontrolü ve otomatik yeniden bağlanma (60 saniyede bir)
+    if (millis() - lastWiFiCheck > 60000) { // 60 saniye
         wifi_mode_t mode = WiFi.getMode();
         wl_status_t status = WiFi.status();
         
-        // Debug log (60 saniyede bir)
-        if (millis() - lastDebugPrint > 60000) {
-            Serial.printf("[WiFi Loop] Mode: %d, Status: %d, STA IP: %s, AP IP: %s\n",
-                mode, status,
-                WiFi.localIP().toString().c_str(),
-                WiFi.softAPIP().toString().c_str());
-            lastDebugPrint = millis();
-        }
-        
-        // Sadece STA veya DUAL modda ve GERÇEKTEN bağlantı kaybedildiyse
+        // STA veya DUAL modda bağlantı kontrolü
         if (mode == WIFI_STA || mode == WIFI_AP_STA) {
             bool nowConnected = (status == WL_CONNECTED);
             
-            // Bağlantı KESİLDİ (önceden bağlıydı şimdi değil)
-            if (wasConnected && !nowConnected) {
-                Serial.println(F("[WiFi] Bağlantı koptu, yeniden bağlanılıyor..."));
+            if (nowConnected) {
+                // Bağlıyız - ama daha iyi ağ var mı kontrol et
+                String currentSSID = WiFi.SSID();
                 
-                // Reconnect yerine network manager'ı kullan (conflict yok)
                 if (network) {
-                    network->connectToKnown();
-                }
-            }
-            
-            // HİÇ BAĞLANMAMIŞ (önceden de bağlı değildi, şimdi de değil)
-            // ANCAK sadece WL_DISCONNECTED veya WL_CONNECTION_LOST durumunda
-            else if (!wasConnected && !nowConnected) {
-                // WL_IDLE_STATUS artık reconnect tetiklemez (AP modunda her zaman idle)
-                // Sadece açık disconnect durumlarında reconnect dene
-                if (status == WL_DISCONNECTED || status == WL_CONNECTION_LOST) {
-                    Serial.printf("[WiFi] Bağlantı yok (status: %d), deneme yapılıyor...\n", status);
-                    if (network) {
+                    // Kayıtlı ağları kontrol et (primary/secondary var mı?)
+                    bool shouldSwitch = network->checkForBetterNetwork(currentSSID);
+                    
+                    if (shouldSwitch) {
+                        Serial.println(F("[WiFi] Daha iyi ağ bulundu, geçiş yapılıyor..."));
                         network->connectToKnown();
                     }
+                }
+            } else {
+                // Bağlantı yok - otomatik tarama ve bağlan
+                Serial.println(F("[WiFi] Bağlantı yok - ağ taranıyor..."));
+                
+                if (network) {
+                    // Bilinen ağlara bağlanmayı dene
+                    network->connectToKnown();
                 }
             }
             
@@ -2333,13 +2333,13 @@ void WebInterface::handleWiFiUpdate() {
     if (wifi.apModeEnabled && isStaConnected) {
         // AP + STA (Dual mode)
         WiFi.mode(WIFI_AP_STA);
-        WiFi.softAP(apName.c_str(), "12345678"); // Dinamik AP ismi
+        WiFi.softAP(apName.c_str()); // Şifresiz AP
         if (dnsServer) dnsServer->start(53, "*", WiFi.softAPIP());
         Serial.printf("[WiFi] AP modu açıldı (Dual mode): %s\n", apName.c_str());
     } else if (wifi.apModeEnabled && !isStaConnected) {
         // Sadece AP
         WiFi.mode(WIFI_AP);
-        WiFi.softAP(apName.c_str(), "12345678"); // Dinamik AP ismi
+        WiFi.softAP(apName.c_str()); // Şifresiz AP
         if (dnsServer) dnsServer->start(53, "*", WiFi.softAPIP());
         Serial.printf("[WiFi] AP modu açıldı (Sadece AP): %s\n", apName.c_str());
     } else if (!wifi.apModeEnabled && isStaConnected) {

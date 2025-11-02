@@ -14,7 +14,7 @@ public:
     MailSettings currentConfig() const { return settings; }
 
     bool sendWarning(uint8_t alarmIndex, const ScheduleSnapshot &snapshot, String &errorMessage);
-    bool sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage);
+    bool sendFinal(const ScheduleSnapshot &snapshot, TimerRuntime &runtime, String &errorMessage);
     
     // Test fonksiyonları - sadece gönderen adrese mail atar
     bool sendWarningTest(const ScheduleSnapshot &snapshot, String &errorMessage);

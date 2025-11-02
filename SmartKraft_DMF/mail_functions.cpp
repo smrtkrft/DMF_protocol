@@ -45,32 +45,6 @@ const char* ROOT_CA_ISRG_X1 =
 "emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=\n"
 "-----END CERTIFICATE-----\n";
 
-// DigiCert Global Root CA (Gmail ve çoğu büyük provider kullanıyor)
-// Geçerlilik: 2006-11-10 → 2031-11-10 (25 YIL!)
-const char* ROOT_CA_DIGICERT = 
-"-----BEGIN CERTIFICATE-----\n"
-"MIIDrzCCApegAwIBAgIQCDvgVpBCRrGhdWrJWZHHSjANBgkqhkiG9w0BAQUFADBh\n"
-"MQswCQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMRkwFwYDVQQLExB3\n"
-"d3cuZGlnaWNlcnQuY29tMSAwHgYDVQQDExdEaWdpQ2VydCBHbG9iYWwgUm9vdCBD\n"
-"QTAeFw0wNjExMTAwMDAwMDBaFw0zMTExMTAwMDAwMDBaMGExCzAJBgNVBAYTAlVT\n"
-"MRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5j\n"
-"b20xIDAeBgNVBAMTF0RpZ2lDZXJ0IEdsb2JhbCBSb290IENBMIIBIjANBgkqhkiG\n"
-"9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4jvhEXLeqKTTo1eqUKKPC3eQyaKl7hLOllsB\n"
-"CSDMAZOnTjC3U/dDxGkAV53ijSLdhwZAAIEJzs4bg7/fzTtxRuLWZscFs3YnFo97\n"
-"nh6Vfe63SKMI2tavegw5BmV/Sl0fvBf4q77uKNd0f3p4mVmFaG5cIzJLv07A6Fpt\n"
-"43C/dxC//AH2hdmoRBBYMql1GNXRor5H4idq9Joz+EkIYIvUX7Q6hL+hqkpMfT7P\n"
-"T19sdl6gSzeRntwi5m3OFBqOasv+zbMUZBfHWymeMr/y7vrTC0LUq7dBMtoM1O/4\n"
-"gdW7jVg/tRvoSSiicNoxBN33shbyTApOB6jtSj1etX+jkMOvJwIDAQABo2MwYTAO\n"
-"BgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zAdBgNVHQ4EFgQUA95QNVbR\n"
-"TLtm8KPiGxvDl7I90VUwHwYDVR0jBBgwFoAUA95QNVbRTLtm8KPiGxvDl7I90VUw\n"
-"DQYJKoZIhvcNAQEFBQADggEBAMucN6pIExIK+t1EnE9SsPTfrgT1eXkIoyQY/Esr\n"
-"hMAtudXH/vTBH1jLuG2cenTnmCmrEbXjcKChzUyImZOMkXDiqw8cvpOp/2PV5Adg\n"
-"06O/nVsJ8dWO41P0jmP6P6fbtGbfYmbW0W5BjfIttep3Sp+dWOIrWcBAI+0tKIJF\n"
-"PnlUkiaY4IBIqDfv8NZ5YBberOgOzW6sRBc4L0na4UU+Krk2U886UAb3LujEV0ls\n"
-"YSEY1QSteDwsOoBrp+uvFRTp2InBuThs4pFsiv9kuXclVzDAGySj4dzp30d8tbQk\n"
-"CAUw7C29C79Fv1C5qfPrmAESrciIxpg0X40KPMbp1ZWVbd4=\n"
-"-----END CERTIFICATE-----\n";
-
 // ============================================================================
 
 void MailAgent::begin(ConfigStore *storePtr, DMFNetworkManager *netMgrPtr, const String &deviceIdStr) {
@@ -171,18 +145,26 @@ String MailAgent::smtpReadLine(WiFiClientSecure &client, uint32_t timeoutMs) {
 }
 
 bool MailAgent::smtpConnect(WiFiClientSecure &client, String &errorMessage) {
+    // İnternet bağlantısı kontrolü
+    if (WiFi.status() != WL_CONNECTED) {
+        errorMessage = "WiFi not connected";
+        Serial.println(F("[SMTP] ✗ WiFi bağlı değil"));
+        return false;
+    }
+    
     Serial.printf("[SMTP] Connecting: %s:%d\n", settings.smtpServer.c_str(), settings.smtpPort);
+    Serial.printf("[SMTP] WiFi: %s (IP: %s)\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
     
     // SSL/TLS Sertifika Doğrulama (MITM Koruması)
-    // ProtonMail → ISRG Root X1 | Gmail → DigiCert Root CA
+    // ProtonMail → ISRG Root X1 | Gmail → Sertifika doğrulaması yok (setInsecure)
     if (settings.smtpServer.indexOf("protonmail") >= 0 || 
         settings.smtpServer.indexOf("proton.me") >= 0) {
         client.setCACert(ROOT_CA_ISRG_X1);
         Serial.println(F("[SMTP] Root CA: ISRG X1 (ProtonMail)"));
     } else {
-        // Gmail ve diğer büyük provider'lar DigiCert kullanıyor
-        client.setCACert(ROOT_CA_DIGICERT);
-        Serial.println(F("[SMTP] Root CA: DigiCert Global (Gmail/Others)"));
+        // Gmail ve diğer provider'lar için sertifika doğrulamasını atla
+        client.setInsecure();
+        Serial.println(F("[SMTP] SSL: Insecure mode (Gmail/Others)"));
     }
     client.setTimeout(15);
     
@@ -195,15 +177,23 @@ bool MailAgent::smtpConnect(WiFiClientSecure &client, String &errorMessage) {
     IPAddress serverIP;
     if (!WiFi.hostByName(settings.smtpServer.c_str(), serverIP)) {
         errorMessage = "DNS failed: " + settings.smtpServer;
-        Serial.println(F("[SMTP] DNS resolution failed"));
+        Serial.println(F("[SMTP] ✗ DNS çözümlenemedi"));
         return false;
     }
+    Serial.printf("[SMTP] ✓ DNS: %s → %s\n", settings.smtpServer.c_str(), serverIP.toString().c_str());
     
+    Serial.println(F("[SMTP] SSL/TLS bağlantısı kuruluyor..."));
     if (!client.connect(settings.smtpServer.c_str(), settings.smtpPort)) {
         errorMessage = "Connection failed";
-        Serial.println(F("[SMTP] Connection failed"));
+        Serial.println(F("[SMTP] ✗ Bağlantı başarısız"));
+        Serial.println(F("[SMTP] ℹ Olası sebepler:"));
+        Serial.println(F("[SMTP]   - İnternet bağlantısı yok"));
+        Serial.println(F("[SMTP]   - SMTP sunucusu erişilemiyor"));
+        Serial.println(F("[SMTP]   - SSL/TLS sertifika hatası"));
+        Serial.println(F("[SMTP]   - Firewall port 465 engelliyor"));
         return false;
     }
+    Serial.println(F("[SMTP] ✓ SSL/TLS bağlantısı kuruldu"));
     
     String response = smtpReadLine(client);
     Serial.printf("[SMTP] << %s\n", response.c_str());
@@ -292,8 +282,8 @@ bool MailAgent::sendWarning(uint8_t alarmIndex, const ScheduleSnapshot &snapshot
     body.replace("%TOTAL_ALARMS%", String(snapshot.totalAlarms));
     body.replace("%REMAINING%", formatElapsed(snapshot));
 
-    // ⚠️ ALARM = SADECE KENDİNE HATIRLATMA MAİLİ (mail listesine GİTMEZ)
-    Serial.println(F("[Warning] Erken uyarı - sadece gönderen adrese mail atılıyor"));
+    // Alarm maili sadece kullanıcının kendisine gider (mail gruplarına GİTMEZ)
+    Serial.printf("[Alarm %d] Hatırlatma maili gönderiliyor (sadece gönderen adrese)\n", alarmIndex + 1);
     bool mailSuccess = sendEmailToSelf(subject, body, true, errorMessage);
     
     // URL tetikleme (mail başarısız olsa bile çalıştır - NON-BLOCKING)
@@ -319,9 +309,9 @@ bool MailAgent::sendWarning(uint8_t alarmIndex, const ScheduleSnapshot &snapshot
             if (url.startsWith("https://")) {
                 WiFiClientSecure* client = new WiFiClientSecure();
                 
-                // SSL/TLS Sertifika Doğrulama (URL Trigger - Warning)
-                client->setCACert(ROOT_CA_DIGICERT);
-                Serial.println(F("[Warning URL] SSL: DigiCert Root CA"));
+                // SSL/TLS - Sertifika doğrulaması yok
+                client->setInsecure();
+                Serial.println(F("[Warning URL] SSL: Insecure mode"));
                 
                 if (http.begin(*client, url)) {
                     http.setTimeout(8000);
@@ -382,7 +372,7 @@ bool MailAgent::sendWarning(uint8_t alarmIndex, const ScheduleSnapshot &snapshot
     return mailSuccess;
 }
 
-bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage) {
+bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, TimerRuntime &runtime, String &errorMessage) {
     Serial.println(F("========== DMF PROTOKOLÜ - ÇOKLU GRUP MAİL GÖNDERİMİ =========="));
     
     // Hiç aktif grup yoksa hata
@@ -403,6 +393,13 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
         // Grup aktif değilse atla
         if (!group.enabled) {
             Serial.printf("[Final] Grup %d (%s) - ATLANDΙ (devre dışı)\n", g + 1, group.name.c_str());
+            runtime.finalGroupsSent[g] = true; // Devre dışı gruplar "gönderildi" sayılır
+            continue;
+        }
+        
+        // ✅ ZATEN GÖNDERİLMİŞSE ATLA
+        if (runtime.finalGroupsSent[g]) {
+            Serial.printf("[Final] Grup %d (%s) - ZATEN GÖNDERİLDİ (atlanıyor)\n", g + 1, group.name.c_str());
             continue;
         }
         
@@ -413,6 +410,7 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
         // Grubun alıcısı yoksa uyar ama devam et
         if (group.recipientCount == 0) {
             Serial.printf("[Final] UYARI: Grup '%s' için alıcı yok\n", group.name.c_str());
+            runtime.finalGroupsSent[g] = true; // Alıcısız gruplar "gönderildi" sayılır
             continue;
         }
         
@@ -456,6 +454,7 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
         }
         
         // Grup alıcılarına AYRI AYRI mail gönder (DMF Protokolü - Privacy)
+        bool groupSuccess = true;
         for (uint8_t i = 0; i < group.recipientCount; ++i) {
             if (group.recipients[i].length() == 0) continue;
             
@@ -465,8 +464,10 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
             String recipientError;
             if (!sendEmailToRecipient(group.recipients[i], subject, body, true, recipientError)) {
                 Serial.printf("[Final] ✗ HATA - %s: %s\n", group.recipients[i].c_str(), recipientError.c_str());
+                groupSuccess = false;
                 allSuccess = false;
                 lastError = recipientError;
+                break; // Grup başarısız, döngüden çık (bir sonraki denemede devam eder)
             } else {
                 Serial.printf("[Final] ✓ BAŞARILI - %s\n", group.recipients[i].c_str());
                 totalMailsSent++;
@@ -476,14 +477,22 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
             delay(200);
         }
         
+        // ✅ GRUP BAŞARILI İSE İŞARETLE
+        if (groupSuccess) {
+            runtime.finalGroupsSent[g] = true;
+            Serial.printf("[Final] Grup %d (%s) - ✓ TÜM MAİLLER GÖNDERİLDİ\n", g + 1, group.name.c_str());
+        } else {
+            Serial.printf("[Final] Grup %d (%s) - ✗ HATALI, bir sonraki denemede tekrar gönderilecek\n", g + 1, group.name.c_str());
+        }
+        
         // Orijinal attachments'ları geri yükle
         settings.attachmentCount = originalAttachmentCount;
         for (uint8_t i = 0; i < originalAttachmentCount; ++i) {
             settings.attachments[i] = originalAttachments[i];
         }
         
-        // Grup URL tetiklemesi (NON-BLOCKING - paralel)
-        if (group.getUrl.length() > 0 && WiFi.status() == WL_CONNECTED) {
+        // Grup URL tetiklemesi (sadece grup başarılıysa)
+        if (groupSuccess && group.getUrl.length() > 0 && WiFi.status() == WL_CONNECTED) {
             // URL Validation - SSRF Koruması
             if (!isValidURL(group.getUrl)) {
                 Serial.printf("[Final URL] Grup %d - ✗ GÜVENLİK: URL reddedildi\n", g + 1);
@@ -500,7 +509,7 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
                     
                     if (url.startsWith("https://")) {
                         WiFiClientSecure* client = new WiFiClientSecure();
-                        client->setCACert(ROOT_CA_DIGICERT);
+                        client->setInsecure();
                         
                         if (http.begin(*client, url)) {
                             http.setTimeout(8000);
@@ -585,9 +594,9 @@ bool MailAgent::sendWarningTest(const ScheduleSnapshot &snapshot, String &errorM
             if (url.startsWith("https://")) {
                 WiFiClientSecure* client = new WiFiClientSecure();
                 
-                // SSL/TLS Sertifika Doğrulama (URL Trigger - Warning Test)
-                client->setCACert(ROOT_CA_DIGICERT);
-                Serial.println(F("[TEST Warning URL] SSL: DigiCert Root CA"));
+                // SSL/TLS - Sertifika doğrulaması yok
+                client->setInsecure();
+                Serial.println(F("[TEST Warning URL] SSL: Insecure mode"));
                 
                 if (http.begin(*client, url)) {
                     http.setTimeout(8000);
@@ -762,7 +771,7 @@ bool MailAgent::sendFinalTest(const ScheduleSnapshot &snapshot, String &errorMes
             
             if (url.startsWith("https://")) {
                 WiFiClientSecure* client = new WiFiClientSecure();
-                client->setCACert(ROOT_CA_DIGICERT);
+                client->setInsecure();
                 
                 if (http.begin(*client, url)) {
                     http.setTimeout(8000);

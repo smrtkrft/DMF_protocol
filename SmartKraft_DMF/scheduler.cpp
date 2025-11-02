@@ -183,6 +183,18 @@ void CountdownScheduler::acknowledgeAlarm(uint8_t alarmIndex) {
 
 void CountdownScheduler::acknowledgeFinal() {
     runtime.finalTriggered = false;
+    // Grup gönderim durumlarını sıfırla
+    for (uint8_t i = 0; i < MAX_MAIL_GROUPS; ++i) {
+        runtime.finalGroupsSent[i] = false;
+    }
+    persist();
+}
+
+void CountdownScheduler::updateRuntime(const TimerRuntime &newRuntime) {
+    // Grup gönderim durumlarını güncelle
+    for (uint8_t i = 0; i < MAX_MAIL_GROUPS; ++i) {
+        runtime.finalGroupsSent[i] = newRuntime.finalGroupsSent[i];
+    }
     persist();
 }
 
