@@ -28,7 +28,7 @@
 #define DEBUG_PRINTLN(level, ...) if (DEBUG_LEVEL >= level) Serial.println(__VA_ARGS__)
 
 // Firmware Version
-#define FIRMWARE_VERSION "v1.0.3"
+#define FIRMWARE_VERSION "v1.0.2"
 
 // Pin tanımları - XIAO ESP32C6 (GERÇEK TEST EDİLMİŞ DEĞERLER)
 // Kaynak: C6-Pin&Gpio.md
@@ -38,7 +38,7 @@ constexpr uint8_t BUTTON_PIN = 21;   // D3 -> GPIO21
 constexpr uint8_t RELAY_PIN = 18;    // D10 -> GPIO18
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 200;
 constexpr uint32_t STATUS_PERSIST_INTERVAL_MS = 60000;
-constexpr uint32_t OTA_CHECK_INTERVAL_MS = 30000; // 30 saniye (test için)
+constexpr uint32_t OTA_CHECK_INTERVAL_MS = 120000; // 2 dakika (30 req/saat - güvenli)
 
 
 ConfigStore configStore;

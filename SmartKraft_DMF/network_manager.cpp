@@ -246,14 +246,15 @@ bool DMFNetworkManager::checkOTAUpdate(String currentVersion) {
     }
 
     HTTPClient http;
-    http.setTimeout(10000); // 10 saniye timeout
+    http.setTimeout(15000); // 15 saniye timeout (GitHub API için)
     
     // GitHub API kullanarak latest release'i kontrol et
     const char* versionURL = "https://api.github.com/repos/smrtkrft/DMF_protocol/releases/latest";
     
     Serial.printf("[OTA] Versiyon kontrolü: %s\n", versionURL);
     http.begin(versionURL);
-    http.addHeader("User-Agent", "SmartKraft-DMF"); // GitHub API gereksinimi
+    http.addHeader("User-Agent", "SmartKraft-DMF");
+    http.addHeader("Accept", "application/vnd.github.v3+json"); // GitHub API v3
     
     int httpCode = http.GET();
     
@@ -295,7 +296,14 @@ bool DMFNetworkManager::checkOTAUpdate(String currentVersion) {
         Serial.println(F("[OTA] JSON parse hatası"));
         return false;
     } else {
-        Serial.printf("[OTA] HTTP hatası: %d (GitHub'da release yok olabilir)\n", httpCode);
+        if (httpCode == 403) {
+            Serial.println(F("[OTA] ✗ GitHub API rate limit aşıldı (403 Forbidden)"));
+            Serial.println(F("[OTA] ℹ Lütfen 1 saat sonra tekrar deneyin veya GitHub token kullanın"));
+        } else if (httpCode == 404) {
+            Serial.println(F("[OTA] ✗ Release bulunamadı (404 Not Found)"));
+        } else {
+            Serial.printf("[OTA] ✗ HTTP hatası: %d\n", httpCode);
+        }
         http.end();
         return false;
     }
