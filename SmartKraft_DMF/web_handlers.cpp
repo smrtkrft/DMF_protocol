@@ -7,7 +7,7 @@
 
 // Firmware version (main .ino'dan import)
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "v1.0.3"
+#define FIRMWARE_VERSION "v1.0.4"
 #endif
 
 // i18n language files
@@ -23,7 +23,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartKraft DMF Control Panel</title>
-    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;background:#000;color:#fff;line-height:1.4;font-size:14px}a{color:#fff}.container{max-width:820px;margin:0 auto;padding:16px}.header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #333}.header h1{font-size:1.8em;font-weight:normal;letter-spacing:2px}.device-id{color:#777;font-size:.9em;margin-top:4px}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;border:1px solid #333;padding:12px}.status-card{text-align:center}.status-label{color:#666;font-size:.8em;margin-bottom:4px;text-transform:uppercase}.status-value{font-size:1.2em;color:#fff;min-height:1.2em}.timer-readout{text-align:center;border:1px solid #333;padding:18px;margin-bottom:16px}.timer-readout .value{font-size:2.6em;letter-spacing:2px}.timer-readout .label{color:#777;margin-top:6px;font-size:.85em}.button-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}button{background:transparent;border:1px solid #555;color:#fff;padding:10px 18px;font-family:monospace;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:background .2s}button:hover{background:#222}.btn-danger{border-color:#f00;color:#f00}.btn-danger:hover{background:#f00;color:#000}.btn-success{border-color:#fff;color:#fff}.btn-success:hover{background:#fff;color:#000}.btn-warning{border-color:#ff0;color:#ff0}.btn-warning:hover{background:#ff0;color:#000}.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #333;margin-bottom:8px}.tab{flex:1;min-width:140px;border:1px solid #333;border-bottom:none;background:#000;color:#666;padding:10px;cursor:pointer;text-align:center;font-size:.9em}.tab+.tab{margin-left:4px}.tab.active{color:#fff;border-color:#fff}.tab-content{border:1px solid #333;padding:20px}.tab-pane{display:none}.tab-pane.active{display:block}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}label{font-size:.85em;color:#ccc;text-transform:uppercase;letter-spacing:1px}input[type="text"],input[type="number"],input[type="password"],input[type="email"],textarea,select{width:100%;padding:10px;background:#000;border:1px solid #333;color:#fff;font-family:monospace}textarea{resize:vertical;min-height:100px}.checkbox{display:flex;align-items:center;gap:8px;font-size:.9em;color:#ccc}.section-title{border-bottom:1px solid #333;padding-bottom:6px;margin-top:8px;margin-bottom:12px;font-size:1em;letter-spacing:1px;text-transform:uppercase}.attachments{border:1px solid #333;padding:12px;margin-bottom:16px}.attachments table{width:100%;border-collapse:collapse;font-size:.85em}.attachments th,.attachments td{border-bottom:1px solid #222;padding:6px;text-align:left}.attachments th{color:#888;text-transform:uppercase;letter-spacing:1px}.file-upload{border:1px dashed #555;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer}.file-upload:hover{background:#111}.alert{display:none;margin-bottom:12px;padding:10px;border:1px solid #333;font-size:.85em}.alert.success{border-color:#fff;color:#fff}.alert.error{border-color:#f00;color:#f00}.list{border:1px solid #333;padding:10px;max-height:180px;overflow-y:auto;font-size:.85em}.list-item{border-bottom:1px solid #222;padding:6px 0;display:flex;justify-content:space-between;align-items:center}.list-item:last-child{border-bottom:none}.badge{display:inline-block;padding:2px 6px;font-size:1.5em;border:1px solid #333;margin-left:6px}.connection-indicator{position:fixed;top:12px;right:12px;border:1px solid #333;padding:6px 10px;font-size:.8em;z-index:20;background:#000;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.connection-indicator.online{border-color:#fff;color:#fff}.connection-indicator.offline{border-color:#f00;color:#f00}.lang-selector{position:fixed;top:12px;left:12px;z-index:21;background:#000;border:1px solid #333;padding:6px;display:flex;gap:4px}.lang-btn{background:transparent;border:1px solid #555;color:#888;padding:4px 10px;font-family:monospace;cursor:pointer;font-size:.75em;letter-spacing:1px;transition:all .2s;min-width:40px}.lang-btn:hover{background:#222;border-color:#fff;color:#fff}.lang-btn.active{border-color:#fff;color:#fff;font-weight:bold}.accordion{border:1px solid #333;margin-bottom:12px}.accordion-header{background:#111;border-bottom:1px solid #333;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;letter-spacing:1px;font-size:.9em;transition:background .2s}.accordion-header:hover{background:#1a1a1a}.accordion-header.active{background:#0a0a0a;color:#fff}.accordion-toggle{font-size:1.2em;transition:transform .3s}.accordion-header.active .accordion-toggle{transform:rotate(180deg);color:#fff}.accordion-content{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#0a0a0a}.accordion-content.active{max-height:2000px;padding:16px;border-top:1px solid #fff}.preset-btn{display:inline-block;padding:8px 16px;margin:4px;border:1px solid #555;background:#111;color:#ccc;cursor:pointer;text-align:center;font-size:.85em;transition:all .2s}.preset-btn:hover{background:#222;border-color:#fff}.preset-btn.active{border-color:#fff;background:#fff;color:#000}@media (max-width:600px){.lang-selector{top:8px;left:8px;font-size:.7em;padding:4px;gap:2px}.lang-btn{padding:2px 6px;min-width:32px;font-size:.65em}.connection-indicator{top:48px;right:8px;left:8px;max-width:none;font-size:.7em;padding:4px 8px}.tabs{flex-direction:column}.tab+.tab{margin-left:0;margin-top:4px}.button-bar{flex-wrap:nowrap!important;gap:4px!important}.button-bar>div{gap:4px!important;min-width:0}.button-bar button{padding:8px 10px!important;font-size:.7em!important;min-width:0;letter-spacing:0}}</style>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;background:#000;color:#fff;line-height:1.4;font-size:14px}a{color:#fff}.container{max-width:820px;margin:0 auto;padding:16px}.header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #333}.header h1{font-size:1.8em;font-weight:normal;letter-spacing:2px}.device-id{color:#777;font-size:.9em;margin-top:4px}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;border:1px solid #333;padding:12px}.status-card{text-align:center}.status-label{color:#666;font-size:.8em;margin-bottom:4px;text-transform:uppercase}.status-value{font-size:1.2em;color:#fff;min-height:1.2em}.timer-readout{text-align:center;border:1px solid #333;padding:18px;margin-bottom:16px}.timer-readout .value{font-size:2.6em;letter-spacing:2px}.timer-readout .label{color:#777;margin-top:6px;font-size:.85em}.button-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}button{background:transparent;border:1px solid #555;color:#fff;padding:10px 18px;font-family:monospace;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:background .2s}button:hover{background:#222}.btn-danger{border-color:#f00;color:#f00}.btn-danger:hover{background:#f00;color:#000}.btn-success{border-color:#fff;color:#fff}.btn-success:hover{background:#fff;color:#000}.btn-warning{border-color:#ff0;color:#ff0}.btn-warning:hover{background:#ff0;color:#000}.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #333;margin-bottom:8px}.tab{flex:1;min-width:140px;border:1px solid #333;border-bottom:none;background:#000;color:#666;padding:10px;cursor:pointer;text-align:center;font-size:.9em}.tab+.tab{margin-left:4px}.tab.active{color:#fff;border-color:#fff}.tab-content{border:1px solid #333;padding:20px}.tab-pane{display:none}.tab-pane.active{display:block}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}label{font-size:.85em;color:#ccc;text-transform:uppercase;letter-spacing:1px}input[type="text"],input[type="number"],input[type="password"],input[type="email"],textarea,select{width:100%;padding:10px;background:#000;border:1px solid #333;color:#fff;font-family:monospace}textarea{resize:vertical;min-height:100px}.checkbox{display:flex;align-items:center;gap:8px;font-size:.9em;color:#ccc}.section-title{border-bottom:1px solid #333;padding-bottom:6px;margin-top:8px;margin-bottom:12px;font-size:1em;letter-spacing:1px;text-transform:uppercase}.attachments{border:1px solid #333;padding:12px;margin-bottom:16px}.attachments table{width:100%;border-collapse:collapse;font-size:.85em}.attachments th,.attachments td{border-bottom:1px solid #222;padding:6px;text-align:left}.attachments th{color:#888;text-transform:uppercase;letter-spacing:1px}.file-upload{border:1px dashed #555;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer}.file-upload:hover{background:#111}.alert{display:none;margin-bottom:12px;padding:10px;border:1px solid #333;font-size:.85em}.alert.success{border-color:#fff;color:#fff}.alert.error{border-color:#f00;color:#f00}.list{border:1px solid #333;padding:10px;max-height:180px;overflow-y:auto;font-size:.85em}.list-item{border-bottom:1px solid #222;padding:6px 0;display:flex;justify-content:space-between;align-items:center}.list-item:last-child{border-bottom:none}.badge{display:inline-block;padding:2px 6px;font-size:1.5em;border:1px solid #333;margin-left:6px}.connection-indicator{position:fixed;top:12px;right:12px;border:1px solid #333;padding:6px 10px;font-size:.8em;z-index:20;background:#000;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.connection-indicator.online{border-color:#fff;color:#fff}.connection-indicator.offline{border-color:#f00;color:#f00}.lang-selector{position:fixed;top:12px;left:12px;z-index:21;background:#000;border:1px solid #333;padding:6px;display:flex;gap:4px}.lang-btn{background:transparent;border:1px solid #555;color:#888;padding:4px 10px;font-family:monospace;cursor:pointer;font-size:.75em;letter-spacing:1px;transition:all .2s;min-width:40px}.lang-btn:hover{background:#222;border-color:#fff;color:#fff}.lang-btn.active{border-color:#fff;color:#fff;font-weight:bold}.accordion{border:1px solid #333;margin-bottom:12px}.accordion-header{background:#111;border-bottom:1px solid #333;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;letter-spacing:1px;font-size:.9em;transition:background .2s}.accordion-header:hover{background:#1a1a1a}.accordion-header.active{background:#0a0a0a;color:#fff}.accordion-toggle{font-size:1.2em;transition:transform .3s}.accordion-header.active .accordion-toggle{transform:rotate(180deg);color:#fff}.accordion-content{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#0a0a0a}.accordion-content.active{max-height:2000px;padding:16px;border-top:1px solid #fff}.preset-btn{display:inline-block;padding:8px 16px;margin:4px;border:1px solid #555;background:#111;color:#ccc;cursor:pointer;text-align:center;font-size:.85em;transition:all .2s}.preset-btn:hover{background:#222;border-color:#fff}.preset-btn.active{border-color:#fff;background:#fff;color:#000}.ap-info-box{text-align:center;padding:20px;margin-bottom:20px}.ap-info-row{display:flex;justify-content:center;align-items:center;gap:12px;margin:8px 0;font-size:1.1em}.ap-info-label{color:#888;font-size:.9em;min-width:80px;text-align:right}.ap-info-value{color:#fff;font-weight:bold;letter-spacing:1px}.smtp-info-box{text-align:center;padding:20px;margin-bottom:20px}.smtp-info-row{display:flex;justify-content:center;align-items:center;gap:12px;margin:8px 0;font-size:1em}.smtp-info-label{color:#888;font-size:.85em;min-width:120px;text-align:right}.smtp-info-value{color:#fff;letter-spacing:1px}.toggle-switch{position:relative;display:inline-block;width:60px;height:30px}.toggle-switch input{opacity:0;width:0;height:0}.toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#333;border:2px solid #555;transition:.3s;border-radius:30px}.toggle-slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:#666;transition:.3s;border-radius:50%}input:checked+.toggle-slider{background:#000;border-color:#fff}input:checked+.toggle-slider:before{transform:translateX(30px);background:#fff}.toggle-container{display:flex;justify-content:center;align-items:center;gap:12px;margin:24px 0}.toggle-label{font-size:1em;letter-spacing:1px;text-transform:uppercase;color:#ccc;transition:color .3s}.toggle-status{font-size:.85em;letter-spacing:1px;color:#666;min-width:80px;transition:color .3s}input:checked~.toggle-status{color:#fff}input:checked~.toggle-label{color:#fff}@media (max-width:600px){.lang-selector{top:8px;left:8px;font-size:.7em;padding:4px;gap:2px}.lang-btn{padding:2px 6px;min-width:32px;font-size:.65em}.connection-indicator{top:48px;right:8px;left:8px;max-width:none;font-size:.7em;padding:4px 8px}.tabs{flex-direction:column}.tab+.tab{margin-left:0;margin-top:4px}.button-bar{flex-wrap:nowrap!important;gap:4px!important}.button-bar>div{gap:4px!important;min-width:0}.button-bar button{padding:8px 10px!important;font-size:.7em!important;min-width:0;letter-spacing:0}.ap-info-row,.smtp-info-row{flex-direction:column;gap:4px}.ap-info-label,.smtp-info-label{text-align:center;min-width:auto}}</style>
 </head>
 <body>
     <div id="mainApp" style="display:block;">
@@ -127,36 +127,29 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
                         <span class="accordion-toggle">v</span>
                     </div>
                     <div class="accordion-content">
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
-                            <div class="preset-btn active" id="presetProton" onclick="selectMailPreset('proton')">
-                                <div style="font-weight:bold; margin-bottom:4px;">Proton Mail</div>
-                                <div style="font-size:0.75em; color:#888;">smtp.protonmail.ch</div>
+                        <!-- SMTP Bilgileri -->
+                        <div class="smtp-info-box">
+                            <div class="smtp-info-row">
+                                <span class="smtp-info-label" data-i18n="mail.server">SMTP Server</span>
+                                <input type="text" id="smtpServer" data-i18n="mail.serverPlaceholder" placeholder="smtp.gmail.com" style="flex:1;max-width:400px;padding:8px;background:#000;border:1px solid #333;color:#fff;font-family:monospace;">
                             </div>
-                            <div class="preset-btn" id="presetGmail" onclick="selectMailPreset('gmail')">
-                                <div style="font-weight:bold; margin-bottom:4px;">Gmail</div>
-                                <div style="font-size:0.75em; color:#888;">smtp.gmail.com</div>
+                            <div class="smtp-info-row">
+                                <span class="smtp-info-label" data-i18n="mail.port">Port</span>
+                                <input type="number" id="smtpPort" value="465" style="flex:1;max-width:400px;padding:8px;background:#000;border:1px solid #333;color:#fff;font-family:monospace;">
                             </div>
-                        </div>
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label data-i18n="mail.server">SMTP Server</label>
-                                <input type="text" id="smtpServer" data-i18n="mail.serverPlaceholder" placeholder="e.g., smtp.gmail.com">
+                            <div class="smtp-info-row">
+                                <span class="smtp-info-label" data-i18n="mail.username">Username</span>
+                                <input type="email" id="smtpUsername" data-i18n="mail.usernamePlaceholder" placeholder="user@example.com" style="flex:1;max-width:400px;padding:8px;background:#000;border:1px solid #333;color:#fff;font-family:monospace;">
                             </div>
-                            <div class="form-group">
-                                <label data-i18n="mail.port">Port</label>
-                                <input type="number" id="smtpPort" value="465">
-                            </div>
-                            <div class="form-group">
-                                <label data-i18n="mail.username">Username</label>
-                                <input type="email" id="smtpUsername" data-i18n="mail.usernamePlaceholder" placeholder="e.g., user@example.com">
+                            <div class="smtp-info-row">
+                                <span class="smtp-info-label" data-i18n="mail.password">Password</span>
+                                <input type="password" id="smtpPassword" data-i18n="mail.passwordPlaceholder" placeholder="App Password" style="flex:1;max-width:400px;padding:8px;background:#000;border:1px solid #333;color:#fff;font-family:monospace;">
                             </div>
                         </div>
-                        <div class="form-group" style="max-width:600px; margin:12px auto 0 auto;">
-                            <label id="passwordLabel" data-i18n="mail.password">Password</label>
-                            <input type="password" id="smtpPassword" data-i18n="mail.passwordPlaceholder" placeholder="SMTP password or app-specific password">
-                        </div>
-                        <div style="font-size:0.7em; color:#666; font-style:italic; margin-top:8px; text-align:center;">
-                            <span id="passwordHelp" data-i18n="mail.portHelp">Only port 465 (SSL/TLS) is supported</span>
+                        
+                        <!-- SMTP Kullanım Açıklaması -->
+                        <div style="color:#888;font-size:.9em;line-height:1.6;margin-top:20px;padding:16px;border:1px solid #333;border-radius:4px;" data-i18n="mail.smtpInfoText">
+                            1. Enter your email provider's SMTP server (e.g., smtp.gmail.com, smtp-mail.outlook.com)<br>2. Use port <strong>465</strong> (SSL/TLS)<br>3. Enter your email address as username<br>4. Generate an app-specific password from your email provider (not your regular password)
                         </div>
                     </div>
                 </div>
@@ -229,9 +222,13 @@ This is a SmartKraft DMF early warning message.</textarea>
                         <span class="accordion-toggle">▼</span>
                     </div>
                     <div class="accordion-content">
-                        <div class="form-group checkbox" style="margin-bottom:16px;">
-                            <input type="checkbox" id="apiEnabled">
-                            <label for="apiEnabled" data-i18n="api.enabled">Enable Custom API Endpoint</label>
+                        <div class="toggle-container" style="margin-bottom:24px;">
+                            <span class="toggle-label" data-i18n="api.enabled">ENABLE CUSTOM API ENDPOINT</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="apiEnabled" onchange="updateToggleStatus(this, 'apiEnabledStatus')">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-status" id="apiEnabledStatus" data-i18n="api.inactive">Deaktif</span>
                         </div>
                         
                         <div class="form-group">
@@ -250,9 +247,13 @@ This is a SmartKraft DMF early warning message.</textarea>
                             </div>
                         </div>
                         
-                        <div class="form-group checkbox" style="margin-bottom:16px;">
-                            <input type="checkbox" id="apiRequireToken" onchange="toggleAPIToken()">
-                            <label for="apiRequireToken" data-i18n="api.requireToken">Require Authorization Token</label>
+                        <div class="toggle-container" style="margin-bottom:24px;">
+                            <span class="toggle-label" data-i18n="api.requireToken">REQUIRE AUTHORIZATION TOKEN</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="apiRequireToken" onchange="toggleAPIToken(); updateToggleStatus(this, 'apiRequireTokenStatus')">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-status" id="apiRequireTokenStatus" data-i18n="api.inactive">Deaktif</span>
                         </div>
                         
                         <div class="form-group" id="apiTokenGroup" style="display:none;">
@@ -292,21 +293,35 @@ This is a SmartKraft DMF early warning message.</textarea>
                         <span class="accordion-toggle">▼</span>
                     </div>
                     <div class="accordion-content">
-                        <div class="form-group checkbox" style="margin-bottom:16px;">
-                            <input type="checkbox" id="apModeEnabled" checked>
-                            <label for="apModeEnabled" data-i18n="wifi.modeAP">Access Point (AP) Mode</label>
+                        <!-- AP Bilgileri -->
+                        <div class="ap-info-box">
+                            <div class="ap-info-row">
+                                <span class="ap-info-label" data-i18n="wifi.apNetworkName">Ağ Adı</span>
+                                <span class="ap-info-value">SmartKraft-DMF<span id="apChipId">XXXX</span></span>
+                            </div>
+                            <div class="ap-info-row">
+                                <span class="ap-info-label" data-i18n="wifi.apPassword">Şifre</span>
+                                <span class="ap-info-value" data-i18n="wifi.apPasswordNone">Yok (Açık Ağ)</span>
+                            </div>
+                            <div class="ap-info-row">
+                                <span class="ap-info-label" data-i18n="wifi.apIPAddress">IP Adresi</span>
+                                <span class="ap-info-value">192.168.4.1</span>
+                            </div>
+                        </div>
+                        
+                        <!-- Toggle Switch -->
+                        <div class="toggle-container">
+                            <span class="toggle-label" data-i18n="wifi.apModeToggleLabel">ERİŞİM NOKTASI (AP) MODU</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="apModeEnabled" checked onchange="updateToggleStatus(this, 'apModeStatus')">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-status" id="apModeStatus" data-i18n="wifi.apModeActive">Aktif</span>
                         </div>
                         
                         <!-- AP Mode Açıklama -->
-                        <div style="background:#f8f9fa;border-left:3px solid #007bff;padding:12px;margin-top:8px;border-radius:4px;">
-                            <div style="font-size:13px;color:#495057;margin-bottom:8px;" data-i18n="wifi.apDescription">
-                                Creates a WiFi network that you can connect to for configuration. Useful when your main network is unavailable.
-                            </div>
-                            <div style="font-size:12px;color:#6c757d;">
-                                <strong data-i18n="wifi.apNetworkName">Network Name:</strong> <code style="background:#e9ecef;padding:2px 6px;border-radius:3px;">SmartKraft-DMF<span id="apChipId">XXXX</span></code><br>
-                                <strong data-i18n="wifi.apPassword">Password:</strong> <span data-i18n="wifi.apPasswordNone">None (Open Network)</span><br>
-                                <strong data-i18n="wifi.apIPAddress">IP Address:</strong> <code style="background:#e9ecef;padding:2px 6px;border-radius:3px;">192.168.4.1</code>
-                            </div>
+                        <div style="color:#888;font-size:.9em;line-height:1.6;margin-top:20px;padding:16px;border:1px solid #333;border-radius:4px;" data-i18n="wifi.apModeDescription">
+                            Yapılandırma erişimi için bir WiFi ağı oluşturur. İlk kurulumda varsayılan olarak açıktır. Bağımsız (sadece AP) veya ana ağınızla eşzamanlı (Dual Mode: AP+STA) çalışabilir. Ana WiFi'nize bağlandığında her iki ağ da esnek erişim için aktif kalır. Sadece ana ağ bağlantısını kullanmak istiyorsanız AP modunu kapatabilirsiniz.
                         </div>
                     </div>
                 </div>
@@ -327,9 +342,13 @@ This is a SmartKraft DMF early warning message.</textarea>
                                 <label data-i18n="wifi.staPassword">Password</label>
                                 <input type="password" id="wifiPrimaryPassword" data-i18n="wifi.staPasswordPlaceholder" placeholder="Network password">
                             </div>
-                            <div class="form-group checkbox">
-                                <input type="checkbox" id="primaryStaticEnabled">
-                                <label for="primaryStaticEnabled" data-i18n="wifi.staDHCP">Use DHCP (Automatic IP)</label>
+                            <div class="toggle-container" style="margin:16px 0;">
+                                <span class="toggle-label" data-i18n="wifi.staDHCP">USE DHCP (AUTOMATIC IP)</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="primaryStaticEnabled" onchange="updateToggleStatus(this, 'primaryStaticStatus')">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-status" id="primaryStaticStatus" data-i18n="wifi.inactive">Deaktif</span>
                             </div>
                             <div class="form-group">
                                 <label data-i18n="wifi.staIP">IP Address</label>
@@ -367,9 +386,13 @@ This is a SmartKraft DMF early warning message.</textarea>
                                 <label data-i18n="wifi.staPassword">Password</label>
                                 <input type="password" id="wifiSecondaryPassword" data-i18n="wifi.staPasswordPlaceholder" placeholder="Network password">
                             </div>
-                            <div class="form-group checkbox">
-                                <input type="checkbox" id="secondaryStaticEnabled">
-                                <label for="secondaryStaticEnabled" data-i18n="wifi.staDHCP">Use DHCP (Automatic IP)</label>
+                            <div class="toggle-container" style="margin:16px 0;">
+                                <span class="toggle-label" data-i18n="wifi.staDHCP">USE DHCP (AUTOMATIC IP)</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="secondaryStaticEnabled" onchange="updateToggleStatus(this, 'secondaryStaticStatus')">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="toggle-status" id="secondaryStaticStatus" data-i18n="wifi.inactive">Deaktif</span>
                             </div>
                             <div class="form-group">
                                 <label data-i18n="wifi.staIP">IP Address</label>
@@ -397,9 +420,13 @@ This is a SmartKraft DMF early warning message.</textarea>
                         <div style="width:28px; height:28px; border:2px solid #ffa500; border-radius:4px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:18px; color:#ffa500; flex-shrink:0;">!</div>
                         <div style="font-size:1.1em; font-weight:700; letter-spacing:1px; color:#fff;" data-i18n="wifi.emergencyTitle">EMERGENCY INTERNET CONNECTION</div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:10px; margin:0 0 18px 40px;">
-                        <input type="checkbox" id="wifiAllowOpen" style="width:18px; height:18px; cursor:pointer;">
-                        <label for="wifiAllowOpen" style="font-size:0.9em; font-weight:600; color:#ccc; letter-spacing:0.5px; margin:0; cursor:pointer; user-select:none;" data-i18n="wifi.emergencyCheckbox">ALLOW UNSECURED NETWORKS</label>
+                    <div class="toggle-container" style="margin:0 0 18px 40px;">
+                        <span class="toggle-label" data-i18n="wifi.emergencyCheckbox">ALLOW UNSECURED NETWORKS</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="wifiAllowOpen" onchange="updateToggleStatus(this, 'wifiAllowOpenStatus')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="toggle-status" id="wifiAllowOpenStatus" data-i18n="wifi.inactive">Deaktif</span>
                     </div>
                     <div style="border:1px solid #444; padding:18px; background:#0a0a0a; font-size:0.85em; line-height:1.7; color:#bbb; margin-left:40px;">
                         <div style="margin-bottom:14px;">
@@ -515,7 +542,7 @@ This is a SmartKraft DMF early warning message.</textarea>
                 </div>
 
                 <div style="border-top:1px solid #333; padding-top:16px; margin-top:30px; text-align:center; font-size:0.75em; color:#666;">
-                    <div>SmartKraft DMF <span id="footerVersion">v1.0.1</span> • Open Source Hardware/Software</div>
+                    <div>SmartKraft DMF <span id="footerVersion">v1.0.4</span> • Open Source Hardware/Software</div>
                     <div style="margin-top:4px;">© 2025 SmartKraft Systems</div>
                 </div>
             </div>
@@ -580,6 +607,24 @@ This is a SmartKraft DMF early warning message.</textarea>
 
         function switchLanguage(lang) {
             loadLanguage(lang);
+            
+            // Tüm toggle durumlarını güncelle
+            const toggles = [
+                { checkboxId: 'apModeEnabled', statusId: 'apModeStatus' },
+                { checkboxId: 'apiEnabled', statusId: 'apiEnabledStatus' },
+                { checkboxId: 'apiRequireToken', statusId: 'apiRequireTokenStatus' },
+                { checkboxId: 'primaryStaticEnabled', statusId: 'primaryStaticStatus' },
+                { checkboxId: 'secondaryStaticEnabled', statusId: 'secondaryStaticStatus' },
+                { checkboxId: 'wifiAllowOpen', statusId: 'wifiAllowOpenStatus' },
+                { checkboxId: 'modalGroupEnabled', statusId: 'modalGroupEnabledStatus' }
+            ];
+            
+            toggles.forEach(({ checkboxId, statusId }) => {
+                const checkbox = document.getElementById(checkboxId);
+                if (checkbox) {
+                    updateToggleStatus(checkbox, statusId);
+                }
+            });
         }
 
         function updateLangButtons() {
@@ -696,28 +741,18 @@ This is a SmartKraft DMF early warning message.</textarea>
             content.classList.toggle('active');
         }
 
-        function selectMailPreset(type, updateFields = true) {
-            const presets = document.querySelectorAll('.preset-btn');
-            presets.forEach(btn => btn.classList.remove('active'));
-            
-            const passwordLabel = document.getElementById('passwordLabel');
-            const passwordHelp = document.getElementById('passwordHelp');
-            
-            if(type === 'proton') {
-                if (presets.length > 0) presets[0].classList.add('active');
-                if (passwordLabel) passwordLabel.textContent = 'Proton Mail App Password (16 haneli)';
-                if (passwordHelp) passwordHelp.innerHTML = 'Proton Mail > Settings > Account > Security > Two-factor authentication > Create app password';
-                if (updateFields) {
-                    document.getElementById('smtpServer').value = 'smtp.protonmail.ch';
-                    document.getElementById('smtpPort').value = '465'; // SSL/TLS port
-                }
-            } else if(type === 'gmail') {
-                if (presets.length > 1) presets[1].classList.add('active');
-                if (passwordLabel) passwordLabel.textContent = 'Gmail App Password (16 haneli)';
-                if (passwordHelp) passwordHelp.innerHTML = 'Gmail > Google Account > Security > 2-Step Verification > App passwords > Create app password';
-                if (updateFields) {
-                    document.getElementById('smtpServer').value = 'smtp.gmail.com';
-                    document.getElementById('smtpPort').value = '465'; // SSL/TLS port
+        function updateToggleStatus(checkbox, statusElementId) {
+            const statusElement = document.getElementById(statusElementId);
+            if (statusElement) {
+                const lang = document.getElementById('htmlRoot').getAttribute('lang') || 'en';
+                if (checkbox.checked) {
+                    if (lang === 'tr') statusElement.textContent = 'Aktif';
+                    else if (lang === 'de') statusElement.textContent = 'Aktiv';
+                    else statusElement.textContent = 'Active';
+                } else {
+                    if (lang === 'tr') statusElement.textContent = 'Deaktif';
+                    else if (lang === 'de') statusElement.textContent = 'Inaktiv';
+                    else statusElement.textContent = 'Inactive';
                 }
             }
         }
@@ -1126,8 +1161,11 @@ This is a SmartKraft DMF early warning message.</textarea>
                 };
                 Object.keys(map).forEach(id => { const el = document.getElementById(id); if (el) el.value = map[id] || ''; });
                 document.getElementById('wifiAllowOpen').checked = !!w.allowOpenNetworks;
+                updateToggleStatus(document.getElementById('wifiAllowOpen'), 'wifiAllowOpenStatus');
                 document.getElementById('apModeEnabled').checked = !!w.apModeEnabled;
+                updateToggleStatus(document.getElementById('apModeEnabled'), 'apModeStatus');
                 document.getElementById('primaryStaticEnabled').checked = !!w.primaryStaticEnabled;
+                updateToggleStatus(document.getElementById('primaryStaticEnabled'), 'primaryStaticStatus');
                 
                 // AP Chip ID'yi göster (cihaz ID'den son 4 karakter)
                 const status = await api('/api/status');
@@ -1137,6 +1175,7 @@ This is a SmartKraft DMF early warning message.</textarea>
                     if (apChipIdEl) apChipIdEl.textContent = chipId || 'XXXX';
                 }
                 document.getElementById('secondaryStaticEnabled').checked = !!w.secondaryStaticEnabled;
+                updateToggleStatus(document.getElementById('secondaryStaticEnabled'), 'secondaryStaticStatus');
             } catch (err) { console.error(err); }
         }
 
@@ -1185,8 +1224,10 @@ This is a SmartKraft DMF early warning message.</textarea>
             try {
                 const data = await api('/api/settings');
                 document.getElementById('apiEnabled').checked = data.enabled || false;
+                updateToggleStatus(document.getElementById('apiEnabled'), 'apiEnabledStatus');
                 document.getElementById('apiEndpoint').value = data.endpoint || '';
                 document.getElementById('apiRequireToken').checked = data.requireToken || false;
+                updateToggleStatus(document.getElementById('apiRequireToken'), 'apiRequireTokenStatus');
                 document.getElementById('apiToken').value = data.token || '';
                 toggleAPIToken();
                 updateAPIPreview();
@@ -1423,6 +1464,7 @@ This is a SmartKraft DMF early warning message.</textarea>
             // Clear form
             document.getElementById('modalGroupName').value = '';
             document.getElementById('modalGroupEnabled').checked = true;
+            updateToggleStatus(document.getElementById('modalGroupEnabled'), 'modalGroupEnabledStatus');
             document.getElementById('modalGroupRecipients').value = '';
             document.getElementById('modalGroupSubject').value = 'SmartKraft DMF Final';
             document.getElementById('modalGroupBody').value = '[!] DMF PROTOCOL ACTIVE [!]\n\nDevice: {DEVICE_ID}\nTime: {TIMESTAMP}\n\nTimer completed.';
@@ -1438,6 +1480,7 @@ This is a SmartKraft DMF early warning message.</textarea>
             document.getElementById('mailGroupModalTitle').textContent = 'Edit Mail Group';
             document.getElementById('modalGroupName').value = group.name;
             document.getElementById('modalGroupEnabled').checked = group.enabled;
+            updateToggleStatus(document.getElementById('modalGroupEnabled'), 'modalGroupEnabledStatus');
             document.getElementById('modalGroupRecipients').value = group.recipients.join('\n');
             document.getElementById('modalGroupSubject').value = group.subject;
             document.getElementById('modalGroupBody').value = group.body;
@@ -1567,9 +1610,13 @@ This is a SmartKraft DMF early warning message.</textarea>
                 </div>
                 
                 <!-- Grup Aktif/Pasif -->
-                <div class="form-group checkbox" style="margin-bottom:20px;">
-                    <input type="checkbox" id="modalGroupEnabled">
-                    <label for="modalGroupEnabled" data-i18n="mail.groupEnabled">Enable this group</label>
+                <div class="toggle-container" style="margin-bottom:24px;">
+                    <span class="toggle-label" data-i18n="mail.groupEnabled">ENABLE THIS GROUP</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="modalGroupEnabled" onchange="updateToggleStatus(this, 'modalGroupEnabledStatus')">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-status" id="modalGroupEnabledStatus" data-i18n="mail.inactive">Deaktif</span>
                 </div>
                 
                 <!-- Alıcılar -->
