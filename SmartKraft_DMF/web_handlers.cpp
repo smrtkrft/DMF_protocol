@@ -7,7 +7,7 @@
 
 // Firmware version (main .ino'dan import)
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "v1.0.2"
+#define FIRMWARE_VERSION "v1.0.3"
 #endif
 
 // i18n language files
