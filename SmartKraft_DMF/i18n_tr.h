@@ -186,7 +186,7 @@ const char I18N_TR[] PROGMEM = R"rawliteral({
     "staSSIDPlaceholder": "WiFi ağ adınız",
     "staPassword": "Şifre",
     "staPasswordPlaceholder": "Ağ şifresi",
-    "staDHCP": "DHCP Kullan (Otomatik IP)",
+    "staDHCP": "Statik IP",
     "staIP": "IP Adresi",
     "staGateway": "Ağ Geçidi",
     "staSubnet": "Alt Ağ Maskesi",
