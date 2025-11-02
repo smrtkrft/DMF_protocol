@@ -16,6 +16,20 @@
 #include "web_handlers.h"
 #include "test_functions.h"
 
+// ⚠️ Debug Seviyeleri (performans için)
+// 0 = Sadece kritik hatalar
+// 1 = Temel bilgiler (varsayılan)
+// 2 = Detaylı debug (geliştirme)
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 1
+#endif
+
+#define DEBUG_PRINT(level, ...) if (DEBUG_LEVEL >= level) Serial.printf(__VA_ARGS__)
+#define DEBUG_PRINTLN(level, ...) if (DEBUG_LEVEL >= level) Serial.println(__VA_ARGS__)
+
+// Firmware Version
+#define FIRMWARE_VERSION "v1.0.1"
+
 // Pin tanımları - XIAO ESP32C6 (GERÇEK TEST EDİLMİŞ DEĞERLER)
 // Kaynak: C6-Pin&Gpio.md
 // D3 = GPIO21 (BUTTON), D10 = GPIO18 (RELAY)
@@ -24,6 +38,8 @@ constexpr uint8_t BUTTON_PIN = 21;   // D3 -> GPIO21
 constexpr uint8_t RELAY_PIN = 18;    // D10 -> GPIO18
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 200;
 constexpr uint32_t STATUS_PERSIST_INTERVAL_MS = 60000;
+constexpr uint32_t OTA_CHECK_INTERVAL_MS = 30000; // 30 saniye (test için)
+
 
 ConfigStore configStore;
 CountdownScheduler scheduler;
@@ -40,14 +56,15 @@ bool lastButtonState = true;
 unsigned long lastPersist = 0;
 unsigned long finalMailSentTime = 0; // Final mail gönderilme zamanı
 bool finalMailSent = false; // Final mail gönderildi mi?
+unsigned long lastOTACheck = 0; // OTA kontrol zamanı
 
 String deviceId;
 
 String generateDeviceId() {
     uint64_t mac = ESP.getEfuseMac();
-    // İlk 4 hex karakter (üst 16 bit) her kart için benzersiz
+    // Format: "SmartKraft DMF-7FFE" (tire ile bitişik)
     char buffer[32];
-    snprintf(buffer, sizeof(buffer), "SmartKraft-DMF%04X", (uint32_t)((mac >> 32) & 0xFFFF));
+    snprintf(buffer, sizeof(buffer), "SmartKraft DMF-%04X", (uint32_t)((mac >> 32) & 0xFFFF));
     return String(buffer);
 }
 
@@ -65,8 +82,8 @@ void initHardware() {
     digitalWrite(RELAY_PIN, LOW);
     relayLatched = false;
     
-    Serial.printf("[Init] BUTTON: D3 (GPIO%d)\n", BUTTON_PIN);
-    Serial.printf("[Init] RELAY: D10 (GPIO%d)\n", RELAY_PIN);
+    DEBUG_PRINT(1, "[Init] BUTTON: D3 (GPIO%d)\n", BUTTON_PIN);
+    DEBUG_PRINT(1, "[Init] RELAY: D10 (GPIO%d)\n", RELAY_PIN);
 }
 
 void latchRelay(bool state) {
@@ -84,7 +101,7 @@ void resetTimerFromButton() {
     finalMailSent = false;
     finalMailSentTime = 0;
     
-    Serial.println(F("[Timer] Fiziksel/sanal buton ile geri sayım yeniden başlatıldı"));
+    DEBUG_PRINTLN(1, F("[Timer] Fiziksel/sanal buton ile geri sayım yeniden başlatıldı"));
 }
 
 // performGetRequest() fonksiyonu KALDIRILDI
@@ -213,6 +230,13 @@ void setup() {
 
     if (initialSnap.timerActive) {
         Serial.println(F("[Timer] Kalan süre ile devam ediliyor"));
+        
+        // ⚠️ YENİ: Reboot sonrası final durumunu kontrol et
+        if (initialSnap.finalTriggered) {
+            Serial.println(F("[Timer] Final durumu tespit edildi - röle açık kalacak"));
+            latchRelay(true);
+            finalMailSent = true; // Tekrar mail gönderilmesini önle
+        }
     } else {
         latchRelay(false);
     }
@@ -220,6 +244,7 @@ void setup() {
     lastButtonState = digitalRead(BUTTON_PIN);
     lastButtonChange = millis();
     lastPersist = millis();
+    lastOTACheck = millis(); // OTA kontrolü için
     
     Serial.println(F("[Init] WebServer başlatılıyor..."));
     webUI.startServer();
@@ -267,8 +292,6 @@ void loop() {
     if (loopCounter % 100 == 0) { // 10ms x 100 = 1s
         testInterface.processSerial();
     }
-    
-    loopCounter++;
 
     // ⚠️ YENİ: Final mail gönderildikten 60 saniye sonra reboot
     if (finalMailSent) {
@@ -300,6 +323,15 @@ void loop() {
     if (millis() - lastPersist > STATUS_PERSIST_INTERVAL_MS) {
         scheduler.persist();
         lastPersist = millis();
+    }
+    
+    // ⚠️ YENİ: OTA kontrol - her 5 dakikada bir (üretim) veya 30 saniyede bir (test)
+    if (millis() - lastOTACheck > OTA_CHECK_INTERVAL_MS) {
+        if (networkManager.isConnected()) {
+            DEBUG_PRINTLN(2, F("[OTA] Version kontrolü yapılıyor..."));
+            networkManager.checkOTAUpdate(FIRMWARE_VERSION);
+        }
+        lastOTACheck = millis();
     }
     
     // Sistem responsive tutmak için

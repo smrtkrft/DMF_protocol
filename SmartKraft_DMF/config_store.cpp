@@ -92,6 +92,18 @@ MailSettings ConfigStore::loadMailSettings() const {
         mail.warning.body = doc["warning"]["body"].as<String>();
         mail.warning.getUrl = doc["warning"]["getUrl"].as<String>();
 
+        // Final content (eski API uyumluluğu için)
+        if (doc.containsKey("final")) {
+            mail.finalContent.subject = doc["final"]["subject"].as<String>();
+            mail.finalContent.body = doc["final"]["body"].as<String>();
+            mail.finalContent.getUrl = doc["final"]["getUrl"].as<String>();
+        } else {
+            // Varsayılan değerler
+            mail.finalContent.subject = "SmartKraft DMF Final";
+            mail.finalContent.body = "Süre doldu.";
+            mail.finalContent.getUrl = "";
+        }
+
         // ⚠️ YENİ: Mail Grupları yükle
         if (doc.containsKey("mailGroups") && doc["mailGroups"].is<JsonArray>()) {
             auto groupsArray = doc["mailGroups"].as<JsonArray>();
@@ -116,17 +128,12 @@ MailSettings ConfigStore::loadMailSettings() const {
                     }
                 }
                 
-                // Grup dosyalarını yükle
+                // Grup dosyalarını yükle (sadece dosya yolları)
                 if (groupObj.containsKey("attachments") && groupObj["attachments"].is<JsonArray>()) {
                     auto attArray = groupObj["attachments"].as<JsonArray>();
                     group.attachmentCount = min((uint8_t)attArray.size(), (uint8_t)MAX_ATTACHMENTS_PER_GROUP);
                     for (uint8_t i = 0; i < group.attachmentCount; ++i) {
-                        auto entry = attArray[i];
-                        strlcpy(group.attachments[i].displayName, entry["displayName"].as<const char*>(), MAX_FILENAME_LEN);
-                        strlcpy(group.attachments[i].storedPath, entry["storedPath"].as<const char*>(), MAX_PATH_LEN);
-                        group.attachments[i].size = entry["size"].as<uint32_t>();
-                        group.attachments[i].forWarning = entry["forWarning"].as<bool>();
-                        group.attachments[i].forFinal = entry["forFinal"].as<bool>();
+                        group.attachments[i] = attArray[i].as<String>();
                     }
                 }
             }
@@ -147,18 +154,10 @@ MailSettings ConfigStore::loadMailSettings() const {
                     group.recipients[i] = mail.recipients[i];
                 }
                 
-                // Eski attachments'ları ilk gruba kopyala
-                if (doc.containsKey("attachments") && doc["attachments"].is<JsonArray>()) {
-                    auto array = doc["attachments"].as<JsonArray>();
-                    group.attachmentCount = min((uint8_t)array.size(), (uint8_t)MAX_ATTACHMENTS_PER_GROUP);
-                    for (uint8_t i = 0; i < group.attachmentCount; ++i) {
-                        auto entry = array[i];
-                        strlcpy(group.attachments[i].displayName, entry["displayName"].as<const char*>(), MAX_FILENAME_LEN);
-                        strlcpy(group.attachments[i].storedPath, entry["storedPath"].as<const char*>(), MAX_PATH_LEN);
-                        group.attachments[i].size = entry["size"].as<uint32_t>();
-                        group.attachments[i].forWarning = entry["forWarning"].as<bool>();
-                        group.attachments[i].forFinal = entry["forFinal"].as<bool>();
-                    }
+                // Eski attachments'ları ilk gruba kopyala (AttachmentMeta'dan String'e dönüştür)
+                group.attachmentCount = mail.attachmentCount;
+                for (uint8_t i = 0; i < group.attachmentCount; ++i) {
+                    group.attachments[i] = String(mail.attachments[i].storedPath);
                 }
             }
         }
@@ -198,6 +197,12 @@ void ConfigStore::saveMailSettings(const MailSettings &mail) {
     warning["body"] = mail.warning.body;
     warning["getUrl"] = mail.warning.getUrl;
 
+    // Final content (eski API uyumluluğu için)
+    auto final = doc.createNestedObject("final");
+    final["subject"] = mail.finalContent.subject;
+    final["body"] = mail.finalContent.body;
+    final["getUrl"] = mail.finalContent.getUrl;
+
     // ⚠️ YENİ: Mail Gruplarını kaydet
     auto mailGroups = doc.createNestedArray("mailGroups");
     for (uint8_t g = 0; g < mail.mailGroupCount; ++g) {
@@ -216,15 +221,10 @@ void ConfigStore::saveMailSettings(const MailSettings &mail) {
             recArray.add(group.recipients[i]);
         }
         
-        // Grup dosyalarını kaydet
+        // Grup dosyalarını kaydet (sadece dosya yolları)
         auto attArray = groupObj.createNestedArray("attachments");
         for (uint8_t i = 0; i < group.attachmentCount; ++i) {
-            auto entry = attArray.createNestedObject();
-            entry["displayName"] = group.attachments[i].displayName;
-            entry["storedPath"] = group.attachments[i].storedPath;
-            entry["size"] = group.attachments[i].size;
-            entry["forWarning"] = group.attachments[i].forWarning;
-            entry["forFinal"] = group.attachments[i].forFinal;
+            attArray.add(group.attachments[i]);
         }
     }
 

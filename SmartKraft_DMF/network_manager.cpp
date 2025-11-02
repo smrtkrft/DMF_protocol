@@ -195,7 +195,50 @@ bool DMFNetworkManager::applyStaticIfNeeded(const String &ssid) {
     return applied;
 }
 
-// OTA Update Implementation
+// Versiyon karşılaştırma fonksiyonu (v1.2.3 formatı için)
+// Döner: -1 (v1 < v2), 0 (eşit), 1 (v1 > v2)
+int compareVersions(String v1, String v2) {
+    // "v" prefix'i kaldır
+    v1.replace("v", "");
+    v2.replace("v", "");
+    
+    int v1Major = 0, v1Minor = 0, v1Patch = 0;
+    int v2Major = 0, v2Minor = 0, v2Patch = 0;
+    
+    // v1 parse et
+    int idx1 = v1.indexOf('.');
+    if (idx1 > 0) {
+        v1Major = v1.substring(0, idx1).toInt();
+        int idx2 = v1.indexOf('.', idx1 + 1);
+        if (idx2 > 0) {
+            v1Minor = v1.substring(idx1 + 1, idx2).toInt();
+            v1Patch = v1.substring(idx2 + 1).toInt();
+        } else {
+            v1Minor = v1.substring(idx1 + 1).toInt();
+        }
+    }
+    
+    // v2 parse et
+    idx1 = v2.indexOf('.');
+    if (idx1 > 0) {
+        v2Major = v2.substring(0, idx1).toInt();
+        int idx2 = v2.indexOf('.', idx1 + 1);
+        if (idx2 > 0) {
+            v2Minor = v2.substring(idx1 + 1, idx2).toInt();
+            v2Patch = v2.substring(idx2 + 1).toInt();
+        } else {
+            v2Minor = v2.substring(idx1 + 1).toInt();
+        }
+    }
+    
+    // Karşılaştır
+    if (v1Major != v2Major) return (v1Major > v2Major) ? 1 : -1;
+    if (v1Minor != v2Minor) return (v1Minor > v2Minor) ? 1 : -1;
+    if (v1Patch != v2Patch) return (v1Patch > v2Patch) ? 1 : -1;
+    
+    return 0; // Eşit
+}
+
 bool DMFNetworkManager::checkOTAUpdate(String currentVersion) {
     if (!isConnected()) {
         Serial.println(F("[OTA] WiFi bağlı değil, güncelleme kontrolü atlandı"));
@@ -205,39 +248,60 @@ bool DMFNetworkManager::checkOTAUpdate(String currentVersion) {
     HTTPClient http;
     http.setTimeout(10000); // 10 saniye timeout
     
-    const char* versionURL = "https://raw.githubusercontent.com/smrtkrft/DMF_protocol/main/releases/version.txt";
+    // GitHub API kullanarak latest release'i kontrol et
+    const char* versionURL = "https://api.github.com/repos/smrtkrft/DMF_protocol/releases/latest";
     
     Serial.printf("[OTA] Versiyon kontrolü: %s\n", versionURL);
     http.begin(versionURL);
+    http.addHeader("User-Agent", "SmartKraft-DMF"); // GitHub API gereksinimi
     
     int httpCode = http.GET();
     
     if (httpCode == HTTP_CODE_OK) {
-        String latestVersion = http.getString();
-        latestVersion.trim(); // Whitespace temizle
-        
-        Serial.printf("[OTA] Mevcut versiyon: %s, En son versiyon: %s\n", 
-                      currentVersion.c_str(), latestVersion.c_str());
-        
+        String payload = http.getString();
         http.end();
         
-        // Versiyon karşılaştırması
-        if (latestVersion != currentVersion && latestVersion.length() > 0) {
-            Serial.println(F("[OTA] Yeni versiyon mevcut!"));
-            performOTAUpdate();
-            return true;
-        } else {
-            Serial.println(F("[OTA] Güncelleme gerekmiyor"));
-            return false;
+        // JSON'dan tag_name çıkar (basit string parsing)
+        int tagStart = payload.indexOf("\"tag_name\":\"") + 12;
+        if (tagStart > 11) {
+            int tagEnd = payload.indexOf("\"", tagStart);
+            if (tagEnd > tagStart) {
+                String latestVersion = payload.substring(tagStart, tagEnd);
+                latestVersion.trim();
+                
+                Serial.printf("[OTA] Mevcut versiyon: %s, En son versiyon: %s\n", 
+                              currentVersion.c_str(), latestVersion.c_str());
+                
+                // Versiyon karşılaştırması (sayısal)
+                int comparison = compareVersions(currentVersion, latestVersion);
+                
+                if (comparison < 0) {
+                    // Mevcut versiyon < GitHub versiyon → Güncelleme gerekli
+                    Serial.println(F("[OTA] ✓ Yeni versiyon mevcut, güncelleme başlatılıyor!"));
+                    performOTAUpdate(latestVersion);
+                    return true;
+                } else if (comparison > 0) {
+                    // Mevcut versiyon > GitHub versiyon → Dev versiyonu
+                    Serial.println(F("[OTA] ℹ Mevcut versiyon GitHub'dan daha yeni (dev build)"));
+                    return false;
+                } else {
+                    // Eşit
+                    Serial.println(F("[OTA] ✓ Güncelleme gerekmiyor, en son versiyondasınız"));
+                    return false;
+                }
+            }
         }
+        
+        Serial.println(F("[OTA] JSON parse hatası"));
+        return false;
     } else {
-        Serial.printf("[OTA] HTTP hatası: %d\n", httpCode);
+        Serial.printf("[OTA] HTTP hatası: %d (GitHub'da release yok olabilir)\n", httpCode);
         http.end();
         return false;
     }
 }
 
-void DMFNetworkManager::performOTAUpdate() {
+void DMFNetworkManager::performOTAUpdate(String latestVersion) {
     if (!isConnected()) {
         Serial.println(F("[OTA] WiFi bağlı değil, güncelleme iptal edildi"));
         return;
@@ -246,9 +310,11 @@ void DMFNetworkManager::performOTAUpdate() {
     HTTPClient http;
     http.setTimeout(60000); // 60 saniye timeout (firmware indirme için)
     
-    const char* firmwareURL = "https://github.com/smrtkrft/DMF_protocol/releases/latest/download/SmartKraft_DMF.ino.bin";
+    // Dinamik URL oluştur: /releases/download/{tag_name}/SmartKraft_DMF.ino.bin
+    String firmwareURL = "https://github.com/smrtkrft/DMF_protocol/releases/download/" 
+                         + latestVersion + "/SmartKraft_DMF.ino.bin";
     
-    Serial.printf("[OTA] Firmware indiriliyor: %s\n", firmwareURL);
+    Serial.printf("[OTA] Firmware indiriliyor: %s\n", firmwareURL.c_str());
     http.begin(firmwareURL);
     
     int httpCode = http.GET();

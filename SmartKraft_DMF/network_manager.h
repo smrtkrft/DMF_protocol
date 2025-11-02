@@ -31,7 +31,7 @@ public:
     
     // OTA Update Functions
     bool checkOTAUpdate(String currentVersion);
-    void performOTAUpdate();
+    void performOTAUpdate(String latestVersion);
 
 private:
     ConfigStore *store = nullptr;

@@ -49,13 +49,15 @@ struct MailGroup {
     String body = "Süre doldu.";
     String getUrl = "";
     
-    // Grup dosyaları (her grubun kendi attachments'ı)
-    AttachmentMeta attachments[MAX_ATTACHMENTS_PER_GROUP];
+    // Grup dosyaları (sadece dosya yolları/URL'ler)
+    String attachments[MAX_ATTACHMENTS_PER_GROUP];
     uint8_t attachmentCount = 0;
 };
 
-static const size_t MAX_RECIPIENTS = 10; // DEPRECATED - geriye uyumluluk için
-static const size_t MAX_ATTACHMENTS = 5; // DEPRECATED - geriye uyumluluk için
+// ⚠️ DEPRECATED - Eski sistemle uyumluluk için (v2.0'da kaldırılacak)
+// Migration: Artık MailGroup yapısını kullanın
+static const size_t MAX_RECIPIENTS = 10;
+static const size_t MAX_ATTACHMENTS = 5;
 
 struct MailSettings {
     String smtpServer = "smtp.protonmail.ch";
@@ -63,17 +65,23 @@ struct MailSettings {
     String username = "";
     String password = ""; // Proton app password
 
-    // ⚠️ DEPRECATED: Eski tek liste yapısı - geriye uyumluluk için
+    // ⚠️ DEPRECATED (v2.0'da kaldırılacak)
+    // Migration: Yeni sistemde mailGroups[0].recipients[] kullanın
+    // Eski config dosyalarını okumak için gerekli
     String recipients[MAX_RECIPIENTS];
     uint8_t recipientCount = 0;
 
     WarningContent warning;
+    WarningContent finalContent; // Final mesaj içeriği (warning ile aynı yapı)
     
-    // ⚠️ YENİ: Birden fazla mail grubu (her grubun kendi mesajı/dosyası)
+    // ✅ YENİ: Birden fazla mail grubu (her grubun kendi mesajı/dosyası)
+    // Artık bunu kullanın!
     MailGroup mailGroups[MAX_MAIL_GROUPS];
     uint8_t mailGroupCount = 0; // Aktif grup sayısı
 
-    // ⚠️ DEPRECATED: Eski attachment sistemi - geriye uyumluluk için
+    // ⚠️ DEPRECATED (v2.0'da kaldırılacak)
+    // Migration: Yeni sistemde mailGroups[0].attachments[] kullanın
+    // Eski config dosyalarını okumak için gerekli
     AttachmentMeta attachments[MAX_ATTACHMENTS];
     uint8_t attachmentCount = 0;
 };

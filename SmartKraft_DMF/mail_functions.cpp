@@ -444,9 +444,15 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, String &errorMessage
         }
         
         // Grup attachments'larını geçici olarak settings'e yükle
+        // NOT: MailGroup.attachments String[], ama settings.attachments AttachmentMeta[]
         settings.attachmentCount = group.attachmentCount;
         for (uint8_t i = 0; i < group.attachmentCount; ++i) {
-            settings.attachments[i] = group.attachments[i];
+            // String dosya yolunu AttachmentMeta'ya dönüştür
+            strlcpy(settings.attachments[i].storedPath, group.attachments[i].c_str(), MAX_PATH_LEN);
+            settings.attachments[i].displayName[0] = '\0'; // Boş - gönderimde kullanılmayacak
+            settings.attachments[i].size = 0; // Bilinmiyor
+            settings.attachments[i].forWarning = false;
+            settings.attachments[i].forFinal = true;
         }
         
         // Grup alıcılarına AYRI AYRI mail gönder (DMF Protokolü - Privacy)
@@ -696,9 +702,15 @@ bool MailAgent::sendFinalTest(const ScheduleSnapshot &snapshot, String &errorMes
     }
     
     // Grup attachments'larını geçici olarak settings'e yükle
+    // NOT: MailGroup.attachments String[], ama settings.attachments AttachmentMeta[]
     settings.attachmentCount = group.attachmentCount;
     for (uint8_t i = 0; i < group.attachmentCount; ++i) {
-        settings.attachments[i] = group.attachments[i];
+        // String dosya yolunu AttachmentMeta'ya dönüştür
+        strlcpy(settings.attachments[i].storedPath, group.attachments[i].c_str(), MAX_PATH_LEN);
+        settings.attachments[i].displayName[0] = '\0'; // Boş
+        settings.attachments[i].size = 0;
+        settings.attachments[i].forWarning = false;
+        settings.attachments[i].forFinal = true;
     }
 
     bool allSuccess = true;

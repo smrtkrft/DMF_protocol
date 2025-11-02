@@ -5,6 +5,11 @@
 #include <WiFi.h>
 #include <esp_wifi.h>  // WiFi güç yönetimi için
 
+// Firmware version (main .ino'dan import)
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "v1.0.1"
+#endif
+
 // i18n language files
 #include "i18n_en.h"
 #include "i18n_de.h"
@@ -25,7 +30,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <div class="container">
         <div class="header">
             <h1 data-i18n="header.title">SMARTKRAFT DMF</h1>
-            <div class="device-id"><span data-i18n="header.deviceId">Device ID</span>: <span id="deviceId">-</span></div>
+            <div class="device-id">
+                <span id="deviceId">-</span> / <span id="firmwareVersion">-</span>
+            </div>
         </div>
 
         <!-- Dil Seçimi ve Durum Bilgileri -->
@@ -181,60 +188,26 @@ This is a SmartKraft DMF early warning message.</textarea>
                     </div>
                 </div>
 
-                <!-- DMF PROTOKOLÜ DÜZENLE -->
+                <!-- DMF PROTOKOLÜ - MAIL GROUPS -->
                 <div class="accordion">
                     <div class="accordion-header" onclick="toggleAccordion(this)">
-                        <span data-i18n="mail.sectionFinal">Final Message (DMF Protocol)</span>
+                        <span data-i18n="mail.sectionFinalGroups">Final Message Groups (DMF Protocol)</span>
                         <span class="accordion-toggle">v</span>
                     </div>
                     <div class="accordion-content">
-                        <div class="form-group">
-                            <label data-i18n="mail.sectionRecipients">Recipients</label>
-                            <textarea id="mailRecipients" data-i18n="mail.recipientsPlaceholder" placeholder="recipient1@example.com&#10;recipient2@example.com" style="min-height:80px;"></textarea>
+                        <div style="font-size:0.85em; color:#888; margin-bottom:16px; line-height:1.5;">
+                            <span data-i18n="mail.groupsHelp">Create up to 3 mail groups. Each group has its own recipients, message, files and URL trigger. Click on a group to edit.</span>
                         </div>
-                        <div style="font-size:0.7em; color:#666; margin-bottom:12px;">
-                            <span data-i18n="mail.recipientsHelp">Enter email addresses (one per line)</span>
+                        
+                        <!-- Mail Grup Listesi -->
+                        <div id="mailGroupsList" style="border:1px solid #333; background:#0a0a0a;">
+                            <!-- Gruplar dinamik olarak buraya yüklenecek -->
                         </div>
-                        <div class="form-group">
-                            <label data-i18n="mail.finalSubject">Subject</label>
-                            <input type="text" id="finalSubject" data-i18n="mail.finalSubjectPlaceholder" placeholder="Final Notice from SmartKraft DMF">
-                        </div>
-                        <div class="form-group">
-                            <label data-i18n="mail.finalBody">Message Body</label>
-                            <textarea id="finalBody" data-i18n="mail.finalBodyPlaceholder" placeholder="Final message content..." style="min-height:120px;">[!] DMF PROTOCOL ACTIVE [!]
-
-Device: {DEVICE_ID}
-Time: {TIMESTAMP}
-
-Timer completed. Urgent action required.</textarea>
-                        </div>
-                        <div style="font-size:0.7em; color:#666; margin-bottom:12px;">
-                            <span data-i18n="mail.placeholders">Use {DEVICE_ID}, {TIMESTAMP}, {REMAINING}, %ALARM_INDEX%, %TOTAL_ALARMS%, %REMAINING%</span>
-                        </div>
-                        <div class="form-group">
-                            <label data-i18n="mail.finalUrl">Trigger URL (GET)</label>
-                            <input type="text" id="finalUrl" data-i18n="mail.finalUrlPlaceholder" placeholder="https://example.com/api/final">
-                        </div>
-                        <div style="border:1px dashed #555; padding:16px; margin:16px 0; text-align:center; cursor:pointer;" onclick="document.getElementById('fileInput').click()">
-                            <div style="color:#888; font-size:0.8em; margin-bottom:8px;" data-i18n="mail.uploadZone">📎 Click to upload file (max 500 KB)</div>
-                        </div>
-                        <input type="file" id="fileInput" style="display:none" onchange="uploadAttachment(event)">
-                        <div class="attachments" style="max-height:200px; overflow-y:auto;">
-                            <div class="section-title" data-i18n="mail.sectionAttachments">Attachments</div>
-                            <table style="width:100%; font-size:0.75em;">
-                                <thead>
-                                    <tr style="border-bottom:1px solid #333;">
-                                        <th style="padding:4px;" data-i18n="mail.attachmentName">File Name</th>
-                                        <th style="padding:4px;" data-i18n="mail.attachmentSize">Size</th>
-                                        <th style="padding:4px; text-align:center;" data-i18n="mail.attachmentWarning">Warning</th>
-                                        <th style="padding:4px; text-align:center;" data-i18n="mail.attachmentFinal">Final</th>
-                                        <th style="padding:4px;" data-i18n="mail.attachmentActions">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="attachmentRows"></tbody>
-                            </table>
-                        </div>
-                        <button id="btnTestFinal" class="btn-danger" style="width:100%; margin-top:12px;" data-i18n="mail.testFinal">Test Final Mail</button>
+                        
+                        <!-- Yeni Grup Ekle Butonu -->
+                        <button onclick="addMailGroup()" style="width:100%; margin-top:12px; border:1px dashed #555;" data-i18n="mail.addGroup">
+                            + Add New Mail Group
+                        </button>
                     </div>
                 </div>
 
@@ -516,13 +489,18 @@ Timer completed. Urgent action required.</textarea>
                 <div style="border-top:1px solid #333; padding-top:20px; margin-top:30px; text-align:center;">
                     <div style="margin-bottom:8px; font-size:0.9em;" data-i18n="info.supportTitle">Support and Documentation</div>
                     <div style="margin-bottom:12px; font-size:0.85em; color:#888;" data-i18n="info.supportText">For detailed user manual, example scenarios and updates:</div>
-                    <a href="https://smartkraft.ch/dmf" target="_blank" style="display:inline-block; padding:8px 20px; background:#fff; color:#000; border:1px solid #fff; border-radius:4px; text-decoration:none; font-weight:500; font-size:0.9em; transition:all 0.3s;">
-                        SmartKraft.ch/DMF
-                    </a>
+                    <div style="display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+                        <a href="https://smartkraft.ch/dmf" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:8px 20px; background:#fff; color:#000; border:1px solid #fff; border-radius:4px; text-decoration:none; font-weight:500; font-size:0.9em; transition:all 0.3s;">
+                            SmartKraft.ch/DMF
+                        </a>
+                        <a href="https://github.com/smrtkrft/DMF_protocol" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:8px 20px; background:#fff; color:#000; border:1px solid #fff; border-radius:4px; text-decoration:none; font-weight:500; font-size:0.9em; transition:all 0.3s;">
+                            GitHub-DMF
+                        </a>
+                    </div>
                 </div>
 
                 <div style="border-top:1px solid #333; padding-top:16px; margin-top:30px; text-align:center; font-size:0.75em; color:#666;">
-                    <div data-i18n="info.footer">SmartKraft DMF v1.0 • Open Source Hardware/Software</div>
+                    <div>SmartKraft DMF <span id="footerVersion">v1.0.1</span> • Open Source Hardware/Software</div>
                     <div style="margin-top:4px;">© 2025 SmartKraft Systems</div>
                 </div>
             </div>
@@ -780,9 +758,20 @@ Timer completed. Urgent action required.</textarea>
             const s = state.status;
             const connection = document.getElementById('connectionStatus');
             const deviceIdEl = document.getElementById('deviceId');
+            const firmwareVersionEl = document.getElementById('firmwareVersion');
+            const footerVersionEl = document.getElementById('footerVersion');
             
             if (s.deviceId && deviceIdEl) {
                 deviceIdEl.textContent = s.deviceId;
+            }
+            
+            if (s.firmwareVersion && firmwareVersionEl) {
+                firmwareVersionEl.textContent = s.firmwareVersion;
+            }
+            
+            // Footer'daki version'u da güncelle
+            if (s.firmwareVersion && footerVersionEl) {
+                footerVersionEl.textContent = s.firmwareVersion;
             }
             
             if (connection) {
@@ -1051,13 +1040,13 @@ Timer completed. Urgent action required.</textarea>
                 document.getElementById('smtpPort').value = state.mail.smtpPort || 465;
                 document.getElementById('smtpUsername').value = state.mail.username || '';
                 document.getElementById('smtpPassword').value = state.mail.password || '';
-                document.getElementById('mailRecipients').value = (state.mail.recipients || []).join('\n');
                 document.getElementById('warningSubject').value = state.mail.warning?.subject || '';
                 document.getElementById('warningBody').value = state.mail.warning?.body || '';
                 document.getElementById('warningUrl').value = state.mail.warning?.getUrl || '';
-                document.getElementById('finalSubject').value = state.mail.final?.subject || '';
-                document.getElementById('finalBody').value = state.mail.final?.body || '';
-                document.getElementById('finalUrl').value = state.mail.final?.getUrl || '';
+                
+                // Load mail groups
+                mailGroups = state.mail.mailGroups || [];
+                renderMailGroups();
                 
                 // Set active preset based on server
                 const server = (state.mail.smtpServer || '').toLowerCase();
@@ -1080,18 +1069,19 @@ Timer completed. Urgent action required.</textarea>
                     smtpPort: Number(document.getElementById('smtpPort').value),
                     username: document.getElementById('smtpUsername').value,
                     password: document.getElementById('smtpPassword').value,
-                    recipients: collectRecipients(),
+                    recipients: [], // Deprecated - now using mailGroups
                     warning: {
                         subject: document.getElementById('warningSubject').value,
                         body: document.getElementById('warningBody').value,
                         getUrl: document.getElementById('warningUrl').value
                     },
                     final: {
-                        subject: document.getElementById('finalSubject').value,
-                        body: document.getElementById('finalBody').value,
-                        getUrl: document.getElementById('finalUrl').value
+                        subject: '', // Deprecated - now in mailGroups
+                        body: '',
+                        getUrl: ''
                     },
-                    attachments: state.mail.attachments || []
+                    attachments: state.mail.attachments || [],
+                    mailGroups: mailGroups || []
                 };
                 await api('/api/mail', { method: 'PUT', body: payload });
                 showAlert('mailAlert', t('mail.saveSuccess'));
@@ -1333,7 +1323,6 @@ Timer completed. Urgent action required.</textarea>
             // 4. MAIL TEST BUTONLARINI KUR
             console.log('[INIT] Setting up mail test buttons...');
             const btnTestWarning = document.getElementById('btnTestWarning');
-            const btnTestFinal = document.getElementById('btnTestFinal');
             const btnSaveMail = document.getElementById('btnSaveMail');
             
             if (btnTestWarning) {
@@ -1354,24 +1343,6 @@ Timer completed. Urgent action required.</textarea>
                 });
             }
             
-            if (btnTestFinal) {
-                // Disable during test to prevent double-click
-                btnTestFinal.addEventListener('click', async function(e) {
-                    e.preventDefault();
-                    if (btnTestFinal.disabled) {
-                        console.log('[BUTTON] Test Final - Already running, ignored');
-                        return;
-                    }
-                    console.log('[BUTTON] Test Final clicked');
-                    btnTestFinal.disabled = true;
-                    try {
-                        await sendFinalTest();
-                    } finally {
-                        setTimeout(() => { btnTestFinal.disabled = false; }, 1000);
-                    }
-                });
-            }
-            
             if (btnSaveMail) {
                 btnSaveMail.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -1383,9 +1354,10 @@ Timer completed. Urgent action required.</textarea>
             // 5. Diğer ayarları yükle (paralel, bloke etmeden)
             console.log('[INIT] Loading settings...');
             document.getElementById('deviceId').textContent = "";
+            document.getElementById('firmwareVersion').textContent = "";
             loadStatus(); // async ama await etme
             loadTimerSettings(); // async ama await etme
-            loadMailSettings(); // async ama await etme
+            loadMailSettings(); // async ama await etme - Mail groups da burada yüklenecek
             loadWiFiSettings(); // async ama await etme
             loadAPISettings(); // async ama await etme - Load custom API settings
             bindStaticIpToggles();
@@ -1415,7 +1387,226 @@ Timer completed. Urgent action required.</textarea>
         }
 
         // init() will be called from DOMContentLoaded
+        
+        // Mail Groups Management
+        let mailGroups = [];
+        let currentEditingGroupIndex = -1;
+        
+        function addMailGroup() {
+            currentEditingGroupIndex = -1;
+            document.getElementById('mailGroupModalTitle').textContent = 'Add Mail Group';
+            
+            // Clear form
+            document.getElementById('modalGroupName').value = '';
+            document.getElementById('modalGroupEnabled').checked = true;
+            document.getElementById('modalGroupRecipients').value = '';
+            document.getElementById('modalGroupSubject').value = 'SmartKraft DMF Final';
+            document.getElementById('modalGroupBody').value = '[!] DMF PROTOCOL ACTIVE [!]\n\nDevice: {DEVICE_ID}\nTime: {TIMESTAMP}\n\nTimer completed.';
+            document.getElementById('modalGroupUrl').value = '';
+            document.getElementById('modalGroupAttachments').value = '';
+            
+            document.getElementById('mailGroupModal').style.display = 'block';
+        }
+        
+        function editMailGroup(index) {
+            currentEditingGroupIndex = index;
+            const group = mailGroups[index];
+            document.getElementById('mailGroupModalTitle').textContent = 'Edit Mail Group';
+            document.getElementById('modalGroupName').value = group.name;
+            document.getElementById('modalGroupEnabled').checked = group.enabled;
+            document.getElementById('modalGroupRecipients').value = group.recipients.join('\n');
+            document.getElementById('modalGroupSubject').value = group.subject;
+            document.getElementById('modalGroupBody').value = group.body;
+            document.getElementById('modalGroupUrl').value = group.getUrl;
+            document.getElementById('modalGroupAttachments').value = group.attachments.join('\n');
+            document.getElementById('mailGroupModal').style.display = 'block';
+        }
+        
+        function closeMailGroupModal() {
+            document.getElementById('mailGroupModal').style.display = 'none';
+        }
+        
+        function saveMailGroup() {
+            const name = document.getElementById('modalGroupName').value.trim();
+            const enabled = document.getElementById('modalGroupEnabled').checked;
+            const recipients = document.getElementById('modalGroupRecipients').value
+                .split('\n')
+                .map(r => r.trim())
+                .filter(r => r.length > 0)
+                .slice(0, 10);
+            const subject = document.getElementById('modalGroupSubject').value.trim();
+            const body = document.getElementById('modalGroupBody').value.trim();
+            const getUrl = document.getElementById('modalGroupUrl').value.trim();
+            const attachments = document.getElementById('modalGroupAttachments').value
+                .split('\n')
+                .map(a => a.trim())
+                .filter(a => a.length > 0)
+                .slice(0, 5);
+            
+            if (!name) {
+                alert('Group name is required');
+                return;
+            }
+            
+            if (recipients.length === 0) {
+                alert('At least one recipient is required');
+                return;
+            }
+            
+            const groupData = {
+                name: name,
+                enabled: enabled,
+                recipients: recipients,
+                subject: subject,
+                body: body,
+                getUrl: getUrl,
+                attachments: attachments
+            };
+            
+            if (currentEditingGroupIndex >= 0) {
+                mailGroups[currentEditingGroupIndex] = groupData;
+            } else {
+                if (mailGroups.length >= 3) {
+                    alert('Maximum 3 mail groups allowed');
+                    return;
+                }
+                mailGroups.push(groupData);
+            }
+            
+            // Save all mail settings (including groups)
+            closeMailGroupModal();
+            renderMailGroups();
+            // Auto-save will happen when user clicks main Save button
+        }
+        
+        function deleteMailGroup(index) {
+            if (!confirm('Delete this mail group?')) return;
+            
+            mailGroups.splice(index, 1);
+            renderMailGroups();
+            // Auto-save will happen when user clicks main Save button
+        }
+        
+        function renderMailGroups() {
+            const container = document.getElementById('mailGroupsList');
+            
+            if (mailGroups.length === 0) {
+                container.innerHTML = '<div style="padding:20px; text-align:center; color:#666;">No mail groups yet. Click "Add New Mail Group" to create one.</div>';
+                return;
+            }
+            
+            container.innerHTML = mailGroups.map((group, index) => {
+                const statusBadge = group.enabled 
+                    ? '<span style="color:#0f0; font-size:0.7em;">● ACTIVE</span>' 
+                    : '<span style="color:#666; font-size:0.7em;">○ DISABLED</span>';
+                
+                const recipientCount = group.recipients.length || 0;
+                const attachmentCount = group.attachments.filter(a => a.trim()).length || 0;
+                
+                return `
+                    <div onclick="editMailGroup(${index})" style="border-bottom:1px solid #333; padding:16px; cursor:pointer; transition:background 0.2s;" 
+                         onmouseover="this.style.background='#111'" onmouseout="this.style.background='transparent'">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="flex:1;">
+                                <div style="font-size:1em; font-weight:bold; margin-bottom:4px;">
+                                    ${group.name || 'Unnamed Group'} ${statusBadge}
+                                </div>
+                                <div style="font-size:0.75em; color:#888;">
+                                    ${recipientCount} recipient(s) • ${attachmentCount} file(s)
+                                </div>
+                            </div>
+                            <div style="font-size:1.5em; color:#666;">›</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
         </script>
+
+    <!-- Mail Groups Modal -->
+    <div id="mailGroupModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; overflow-y:auto;">
+        <div style="max-width:700px; margin:40px auto; background:#000; border:2px solid #fff; padding:24px;">
+            <!-- Modal Header -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:12px;">
+                <h3 id="mailGroupModalTitle" style="margin:0; font-size:1.2em; letter-spacing:1px;" data-i18n="mail.editGroupTitle">Edit Mail Group</h3>
+                <button onclick="closeMailGroupModal()" style="background:transparent; border:1px solid #f00; color:#f00; padding:4px 12px; cursor:pointer;"><span data-i18n="buttons.close">✕ Close</span></button>
+            </div>
+            
+            <!-- Modal Content -->
+            <div style="max-height:70vh; overflow-y:auto; padding-right:8px;">
+                <!-- Grup İsmi -->
+                <div class="form-group">
+                    <label data-i18n="mail.groupName">Group Name</label>
+                    <input type="text" id="modalGroupName" data-i18n="mail.groupNamePlaceholder" placeholder="e.g., Management, Technical Team, Emergency" style="width:100%;">
+                </div>
+                
+                <!-- Grup Aktif/Pasif -->
+                <div class="form-group checkbox" style="margin-bottom:20px;">
+                    <input type="checkbox" id="modalGroupEnabled">
+                    <label for="modalGroupEnabled" data-i18n="mail.groupEnabled">Enable this group</label>
+                </div>
+                
+                <!-- Alıcılar -->
+                <div class="form-group">
+                    <label data-i18n="mail.sectionRecipients">Recipients</label>
+                    <textarea id="modalGroupRecipients" data-i18n="mail.recipientsPlaceholder" placeholder="recipient1@example.com&#10;recipient2@example.com" style="min-height:80px; width:100%;"></textarea>
+                </div>
+                <div style="font-size:0.7em; color:#666; margin-bottom:12px;">
+                    <span data-i18n="mail.recipientsHelpGroup">Enter email addresses (one per line, max 10)</span>
+                </div>
+                
+                <!-- Subject -->
+                <div class="form-group">
+                    <label data-i18n="mail.finalSubject">Subject</label>
+                    <input type="text" id="modalGroupSubject" data-i18n="mail.finalSubjectPlaceholder" placeholder="Final Notice from SmartKraft DMF" style="width:100%;">
+                </div>
+                
+                <!-- Body -->
+                <div class="form-group">
+                    <label data-i18n="mail.finalBody">Message Body</label>
+                    <textarea id="modalGroupBody" data-i18n="mail.finalBodyPlaceholder" placeholder="Final message content..." style="min-height:120px; width:100%;">[!] DMF PROTOCOL ACTIVE [!]
+
+Device: {DEVICE_ID}
+Time: {TIMESTAMP}
+
+Timer completed. Urgent action required.</textarea>
+                </div>
+                <div style="font-size:0.7em; color:#666; margin-bottom:12px;">
+                    <span data-i18n="mail.placeholders">Use {DEVICE_ID}, {TIMESTAMP}, {REMAINING}</span>
+                </div>
+                
+                <!-- URL Trigger -->
+                <div class="form-group">
+                    <label data-i18n="mail.finalUrl">Trigger URL (GET)</label>
+                    <input type="text" id="modalGroupUrl" data-i18n="mail.finalUrlPlaceholder" placeholder="https://example.com/api/final" style="width:100%;">
+                </div>
+                
+                <!-- Dosya Yükleme -->
+                <div style="border:1px dashed #555; padding:16px; margin:16px 0; text-align:center; cursor:pointer;" onclick="document.getElementById('modalFileInput').click()">
+                    <div style="color:#888; font-size:0.8em; margin-bottom:8px;" data-i18n="mail.uploadZone">📎 Click to upload file (max 500 KB)</div>
+                </div>
+                <input type="file" id="modalFileInput" style="display:none" onchange="uploadAttachment(event)">
+                
+                <!-- Grup Dosyaları -->
+                <div class="form-group">
+                    <label data-i18n="mail.sectionGroupAttachments">Group Attachments (one per line, max 5)</label>
+                    <textarea id="modalGroupAttachments" data-i18n="mail.attachmentsPlaceholder" placeholder="/data/file1.pdf&#10;/data/report.csv" style="min-height:80px; width:100%;"></textarea>
+                </div>
+                <div style="font-size:0.7em; color:#666; margin-bottom:12px;">
+                    <span data-i18n="mail.attachmentsHelp">Enter file paths (files must be uploaded first)</span>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div style="display:flex; gap:12px; justify-content:flex-end; border-top:1px solid #333; padding-top:16px; margin-top:16px;">
+                <button onclick="deleteMailGroup(currentEditingGroupIndex); closeMailGroupModal();" style="padding:8px 16px; background:transparent; border:1px solid #f00; color:#f00; cursor:pointer;" data-i18n="buttons.delete">Delete Group</button>
+                <button onclick="closeMailGroupModal()" style="padding:8px 16px; background:transparent; border:1px solid #555; color:#888; cursor:pointer;" data-i18n="buttons.cancel">Cancel</button>
+                <button onclick="saveMailGroup()" style="padding:8px 16px; background:#fff; border:1px solid #fff; color:#000; cursor:pointer; font-weight:bold;" data-i18n="buttons.save">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
 )rawliteral";
@@ -1741,6 +1932,7 @@ void WebInterface::handleStatus() {
     }
     
     doc["deviceId"] = deviceId;
+    doc["firmwareVersion"] = FIRMWARE_VERSION; // Dinamik version bilgisi
     doc["freeHeap"] = ESP.getFreeHeap(); // Memory monitoring
     
     // WiFi config bilgileri sadece gerekirse
@@ -1909,6 +2101,29 @@ void WebInterface::handleMailGet() {
         entry["forWarning"] = mailSettings.attachments[i].forWarning;
         entry["forFinal"] = mailSettings.attachments[i].forFinal;
     }
+    
+    // Add Mail Groups
+    auto mailGroups = doc.createNestedArray("mailGroups");
+    for (uint8_t i = 0; i < mailSettings.mailGroupCount; ++i) {
+        auto group = mailGroups.createNestedObject();
+        group["name"] = mailSettings.mailGroups[i].name;
+        group["enabled"] = mailSettings.mailGroups[i].enabled;
+        
+        auto groupRecipients = group.createNestedArray("recipients");
+        for (uint8_t j = 0; j < mailSettings.mailGroups[i].recipientCount; ++j) {
+            groupRecipients.add(mailSettings.mailGroups[i].recipients[j]);
+        }
+        
+        group["subject"] = mailSettings.mailGroups[i].subject;
+        group["body"] = mailSettings.mailGroups[i].body;
+        group["getUrl"] = mailSettings.mailGroups[i].getUrl;
+        
+        auto groupAttachments = group.createNestedArray("attachments");
+        for (uint8_t j = 0; j < mailSettings.mailGroups[i].attachmentCount; ++j) {
+            groupAttachments.add(mailSettings.mailGroups[i].attachments[j]);
+        }
+    }
+    
     sendJson(doc);
 }
 
@@ -1963,8 +2178,41 @@ void WebInterface::handleMailUpdate() {
         }
     }
 
+    // Handle Mail Groups
+    if (doc.containsKey("mailGroups") && doc["mailGroups"].is<JsonArray>()) {
+        auto groups = doc["mailGroups"].as<JsonArray>();
+        mailSettings.mailGroupCount = min((uint8_t)groups.size(), (uint8_t)MAX_MAIL_GROUPS);
+        for (uint8_t i = 0; i < mailSettings.mailGroupCount; ++i) {
+            auto group = groups[i];
+            mailSettings.mailGroups[i].name = group["name"].as<String>();
+            mailSettings.mailGroups[i].enabled = group["enabled"].as<bool>();
+            
+            // Recipients
+            if (group.containsKey("recipients") && group["recipients"].is<JsonArray>()) {
+                auto groupRecipients = group["recipients"].as<JsonArray>();
+                mailSettings.mailGroups[i].recipientCount = min((uint8_t)groupRecipients.size(), (uint8_t)10);
+                for (uint8_t j = 0; j < mailSettings.mailGroups[i].recipientCount; ++j) {
+                    mailSettings.mailGroups[i].recipients[j] = groupRecipients[j].as<String>();
+                }
+            }
+            
+            mailSettings.mailGroups[i].subject = group["subject"].as<String>();
+            mailSettings.mailGroups[i].body = group["body"].as<String>();
+            mailSettings.mailGroups[i].getUrl = group["getUrl"].as<String>();
+            
+            // Attachments
+            if (group.containsKey("attachments") && group["attachments"].is<JsonArray>()) {
+                auto groupAttachments = group["attachments"].as<JsonArray>();
+                mailSettings.mailGroups[i].attachmentCount = min((uint8_t)groupAttachments.size(), (uint8_t)5);
+                for (uint8_t j = 0; j < mailSettings.mailGroups[i].attachmentCount; ++j) {
+                    mailSettings.mailGroups[i].attachments[j] = groupAttachments[j].as<String>();
+                }
+            }
+        }
+    }
+
     mail->updateConfig(mailSettings);
-    server->send(200, "application/json", "{\"status\":\"ok\"}");
+    server->send(200, "application/json", "{\"status\":\"ok\",\"success\":true}");
 }
 
 void WebInterface::handleMailTest() {
