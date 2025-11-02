@@ -342,9 +342,9 @@ This is a SmartKraft DMF early warning message.</textarea>
                                 <label data-i18n="wifi.staPassword">Password</label>
                                 <input type="password" id="wifiPrimaryPassword" data-i18n="wifi.staPasswordPlaceholder" placeholder="Network password">
                             </div>
-                            <div style="margin:16px 0;">
-                                <div style="font-size:.85em; color:#ccc; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;" data-i18n="wifi.staDHCP">USE DHCP (AUTOMATIC IP)</div>
-                                <div style="display:flex; align-items:center; gap:12px;">
+                            <div class="form-group">
+                                <label data-i18n="wifi.staDHCP">Statik IP</label>
+                                <div style="display:flex; align-items:center; gap:12px; height:42px;">
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="primaryStaticEnabled" onchange="updateToggleStatus(this, 'primaryStaticStatus')">
                                         <span class="toggle-slider"></span>
@@ -352,6 +352,8 @@ This is a SmartKraft DMF early warning message.</textarea>
                                     <span class="toggle-status" id="primaryStaticStatus" data-i18n="wifi.inactive">Deaktif</span>
                                 </div>
                             </div>
+                        </div>
+                        <div class="form-grid">
                             <div class="form-group">
                                 <label data-i18n="wifi.staIP">IP Address</label>
                                 <input type="text" id="primaryIP" placeholder="192.168.1.100">
@@ -388,9 +390,9 @@ This is a SmartKraft DMF early warning message.</textarea>
                                 <label data-i18n="wifi.staPassword">Password</label>
                                 <input type="password" id="wifiSecondaryPassword" data-i18n="wifi.staPasswordPlaceholder" placeholder="Network password">
                             </div>
-                            <div style="margin:16px 0;">
-                                <div style="font-size:.85em; color:#ccc; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;" data-i18n="wifi.staDHCP">USE DHCP (AUTOMATIC IP)</div>
-                                <div style="display:flex; align-items:center; gap:12px;">
+                            <div class="form-group">
+                                <label data-i18n="wifi.staDHCP">Statik IP</label>
+                                <div style="display:flex; align-items:center; gap:12px; height:42px;">
                                     <label class="toggle-switch">
                                         <input type="checkbox" id="secondaryStaticEnabled" onchange="updateToggleStatus(this, 'secondaryStaticStatus')">
                                         <span class="toggle-slider"></span>
@@ -398,6 +400,8 @@ This is a SmartKraft DMF early warning message.</textarea>
                                     <span class="toggle-status" id="secondaryStaticStatus" data-i18n="wifi.inactive">Deaktif</span>
                                 </div>
                             </div>
+                        </div>
+                        <div class="form-grid">
                             <div class="form-group">
                                 <label data-i18n="wifi.staIP">IP Address</label>
                                 <input type="text" id="secondaryIP" placeholder="192.168.1.101">
