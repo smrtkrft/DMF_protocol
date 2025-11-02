@@ -834,7 +834,8 @@ This is a SmartKraft DMF early warning message.</textarea>
             const scheduleEl = document.getElementById('alarmSchedule');
             if (scheduleEl) {
                 if (!s.alarms || s.alarms.length === 0) {
-                    scheduleEl.innerHTML = 'Alarm bulunmuyor';
+                    scheduleEl.innerHTML = '<span data-i18n="messages.noAlarms">No alarms configured</span>';
+                    applyTranslations();
                 } else {
                     const totalSeconds = s.totalSeconds || 0;
                     const elapsed = totalSeconds - (s.remainingSeconds || 0);
@@ -1444,12 +1445,12 @@ This is a SmartKraft DMF early warning message.</textarea>
                 .slice(0, 5);
             
             if (!name) {
-                alert('Group name is required');
+                alert(t('mail.groupNameRequired'));
                 return;
             }
             
             if (recipients.length === 0) {
-                alert('At least one recipient is required');
+                alert(t('mail.groupRecipientsRequired'));
                 return;
             }
             
@@ -1467,7 +1468,7 @@ This is a SmartKraft DMF early warning message.</textarea>
                 mailGroups[currentEditingGroupIndex] = groupData;
             } else {
                 if (mailGroups.length >= 3) {
-                    alert('Maximum 3 mail groups allowed');
+                    alert(t('mail.groupMaxReached'));
                     return;
                 }
                 mailGroups.push(groupData);
@@ -1491,14 +1492,15 @@ This is a SmartKraft DMF early warning message.</textarea>
             const container = document.getElementById('mailGroupsList');
             
             if (mailGroups.length === 0) {
-                container.innerHTML = '<div style="padding:20px; text-align:center; color:#666;">No mail groups yet. Click "Add New Mail Group" to create one.</div>';
+                container.innerHTML = '<div style="padding:20px; text-align:center; color:#666;"><span data-i18n="messages.noMailGroups">No mail groups yet. Click "Add New Mail Group" to create one.</span></div>';
+                applyTranslations();
                 return;
             }
             
             container.innerHTML = mailGroups.map((group, index) => {
                 const statusBadge = group.enabled 
-                    ? '<span style="color:#0f0; font-size:0.7em;">● ACTIVE</span>' 
-                    : '<span style="color:#666; font-size:0.7em;">○ DISABLED</span>';
+                    ? `<span style="color:#0f0; font-size:0.7em;">● ${t('messages.active')}</span>` 
+                    : `<span style="color:#666; font-size:0.7em;">○ DISABLED</span>`;
                 
                 const recipientCount = group.recipients.length || 0;
                 const attachmentCount = group.attachments.filter(a => a.trim()).length || 0;
@@ -1509,10 +1511,10 @@ This is a SmartKraft DMF early warning message.</textarea>
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <div style="flex:1;">
                                 <div style="font-size:1em; font-weight:bold; margin-bottom:4px;">
-                                    ${group.name || 'Unnamed Group'} ${statusBadge}
+                                    ${group.name || t('mail.groupUnnamed')} ${statusBadge}
                                 </div>
                                 <div style="font-size:0.75em; color:#888;">
-                                    ${recipientCount} recipient(s) • ${attachmentCount} file(s)
+                                    ${recipientCount} ${t('mail.groupRecipientCount')} • ${attachmentCount} ${t('mail.groupFileCount')}
                                 </div>
                             </div>
                             <div style="font-size:1.5em; color:#666;">›</div>
