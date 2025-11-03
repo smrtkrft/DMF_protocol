@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <vector>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include "config_store.h"
 
 class DMFNetworkManager {
@@ -30,6 +31,9 @@ public:
     bool connectToKnown();
     bool checkForBetterNetwork(const String &currentSSID);
     
+    // mDNS management
+    void refreshMDNS(); // Yeniden mDNS başlat (ayarlar değiştiğinde)
+    
     // OTA Update Functions
     bool checkOTAUpdate(String currentVersion);
     void performOTAUpdate(String latestVersion);
@@ -41,4 +45,6 @@ private:
     bool connectToOpen();
     bool testInternet(uint32_t timeoutMs = 60000); // 60s connectivity check
     bool applyStaticIfNeeded(const String &ssid);   // choose correct static config
+    void startMDNS(const String &connectedSSID);    // mDNS initialization based on network
+    String getChipIdHex();                          // Get last 4 hex digits of chip ID
 };

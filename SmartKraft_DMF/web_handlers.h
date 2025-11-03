@@ -79,4 +79,8 @@ private:
 
     void handleLogs();
     void sendJson(const JsonDocument &doc);
+    
+    // Helper functions
+    String getChipIdHex();  // Get last 4 hex digits of chip ID
+    void startAPModeMDNS(); // Start mDNS for AP mode
 };

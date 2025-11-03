@@ -100,6 +100,7 @@ struct WiFiSettings {
     String primaryGateway = "";  // "192.168.1.1"
     String primarySubnet = "";   // "255.255.255.0"
     String primaryDNS = "";      // opsiyonel
+    String primaryMDNS = "";     // kullanıcı tanımlı mDNS hostname (örn: "emek" -> "emek.local")
 
     // Secondary statik IP ayarları
     bool secondaryStaticEnabled = false;
@@ -107,6 +108,7 @@ struct WiFiSettings {
     String secondaryGateway = "";
     String secondarySubnet = "";
     String secondaryDNS = "";
+    String secondaryMDNS = "";   // kullanıcı tanımlı mDNS hostname
 };
 
 // ⚠️ YENİ: API Endpoint Ayarları

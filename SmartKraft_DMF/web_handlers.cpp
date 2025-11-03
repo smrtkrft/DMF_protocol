@@ -3,11 +3,12 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include <esp_wifi.h>  // WiFi güç yönetimi için
 
 // Firmware version (main .ino'dan import)
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "v1.0.4"
+#define FIRMWARE_VERSION "v1.0.5"
 #endif
 
 // i18n language files
@@ -23,7 +24,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartKraft DMF Control Panel</title>
-    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;background:#000;color:#fff;line-height:1.4;font-size:14px}a{color:#fff}.container{max-width:820px;margin:0 auto;padding:16px}.header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #333}.header h1{font-size:1.8em;font-weight:normal;letter-spacing:2px}.device-id{color:#777;font-size:.9em;margin-top:4px}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;border:1px solid #333;padding:12px}.status-card{text-align:center}.status-label{color:#666;font-size:.8em;margin-bottom:4px;text-transform:uppercase}.status-value{font-size:1.2em;color:#fff;min-height:1.2em}.timer-readout{text-align:center;border:1px solid #333;padding:18px;margin-bottom:16px}.timer-readout .value{font-size:2.6em;letter-spacing:2px}.timer-readout .label{color:#777;margin-top:6px;font-size:.85em}.button-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}button{background:transparent;border:1px solid #555;color:#fff;padding:10px 18px;font-family:monospace;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:background .2s}button:hover{background:#222}.btn-danger{border-color:#f00;color:#f00}.btn-danger:hover{background:#f00;color:#000}.btn-success{border-color:#fff;color:#fff}.btn-success:hover{background:#fff;color:#000}.btn-warning{border-color:#ff0;color:#ff0}.btn-warning:hover{background:#ff0;color:#000}.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #333;margin-bottom:8px}.tab{flex:1;min-width:140px;border:1px solid #333;border-bottom:none;background:#000;color:#666;padding:10px;cursor:pointer;text-align:center;font-size:.9em}.tab+.tab{margin-left:4px}.tab.active{color:#fff;border-color:#fff}.tab-content{border:1px solid #333;padding:20px}.tab-pane{display:none}.tab-pane.active{display:block}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}label{font-size:.85em;color:#ccc;text-transform:uppercase;letter-spacing:1px}input[type="text"],input[type="number"],input[type="password"],input[type="email"],textarea,select{width:100%;padding:10px;background:#000;border:1px solid #333;color:#fff;font-family:monospace}textarea{resize:vertical;min-height:100px}.checkbox{display:flex;align-items:center;gap:8px;font-size:.9em;color:#ccc}.section-title{border-bottom:1px solid #333;padding-bottom:6px;margin-top:8px;margin-bottom:12px;font-size:1em;letter-spacing:1px;text-transform:uppercase}.attachments{border:1px solid #333;padding:12px;margin-bottom:16px}.attachments table{width:100%;border-collapse:collapse;font-size:.85em}.attachments th,.attachments td{border-bottom:1px solid #222;padding:6px;text-align:left}.attachments th{color:#888;text-transform:uppercase;letter-spacing:1px}.file-upload{border:1px dashed #555;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer}.file-upload:hover{background:#111}.alert{display:none;margin-bottom:12px;padding:10px;border:1px solid #333;font-size:.85em}.alert.success{border-color:#fff;color:#fff}.alert.error{border-color:#f00;color:#f00}.list{border:1px solid #333;padding:10px;max-height:180px;overflow-y:auto;font-size:.85em}.list-item{border-bottom:1px solid #222;padding:6px 0;display:flex;justify-content:space-between;align-items:center}.list-item:last-child{border-bottom:none}.badge{display:inline-block;padding:2px 6px;font-size:1.5em;border:1px solid #333;margin-left:6px}.connection-indicator{position:fixed;top:12px;right:12px;border:1px solid #333;padding:6px 10px;font-size:.8em;z-index:20;background:#000;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.connection-indicator.online{border-color:#fff;color:#fff}.connection-indicator.offline{border-color:#f00;color:#f00}.lang-selector{position:fixed;top:12px;left:12px;z-index:21;background:#000;border:1px solid #333;padding:6px;display:flex;gap:4px}.lang-btn{background:transparent;border:1px solid #555;color:#888;padding:4px 10px;font-family:monospace;cursor:pointer;font-size:.75em;letter-spacing:1px;transition:all .2s;min-width:40px}.lang-btn:hover{background:#222;border-color:#fff;color:#fff}.lang-btn.active{border-color:#fff;color:#fff;font-weight:bold}.accordion{border:1px solid #333;margin-bottom:12px}.accordion-header{background:#111;border-bottom:1px solid #333;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;letter-spacing:1px;font-size:.9em;transition:background .2s}.accordion-header:hover{background:#1a1a1a}.accordion-header.active{background:#0a0a0a;color:#fff}.accordion-toggle{font-size:1.2em;transition:transform .3s}.accordion-header.active .accordion-toggle{transform:rotate(180deg);color:#fff}.accordion-content{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#0a0a0a}.accordion-content.active{max-height:2000px;padding:16px;border-top:1px solid #fff}.preset-btn{display:inline-block;padding:8px 16px;margin:4px;border:1px solid #555;background:#111;color:#ccc;cursor:pointer;text-align:center;font-size:.85em;transition:all .2s}.preset-btn:hover{background:#222;border-color:#fff}.preset-btn.active{border-color:#fff;background:#fff;color:#000}.ap-info-box{text-align:center;padding:20px;margin-bottom:20px}.ap-info-row{display:flex;justify-content:center;align-items:center;gap:12px;margin:8px 0;font-size:1.1em}.ap-info-label{color:#888;font-size:.9em;min-width:80px;text-align:right}.ap-info-value{color:#fff;font-weight:bold;letter-spacing:1px}.smtp-info-box{text-align:center;padding:20px;margin-bottom:20px}.smtp-info-row{display:flex;justify-content:center;align-items:center;gap:12px;margin:8px 0;font-size:1em}.smtp-info-label{color:#888;font-size:.85em;min-width:120px;text-align:right}.smtp-info-value{color:#fff;letter-spacing:1px}.toggle-switch{position:relative;display:inline-block;width:60px;height:30px}.toggle-switch input{opacity:0;width:0;height:0}.toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#333;border:2px solid #555;transition:.3s;border-radius:30px}.toggle-slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:#666;transition:.3s;border-radius:50%}input:checked+.toggle-slider{background:#000;border-color:#fff}input:checked+.toggle-slider:before{transform:translateX(30px);background:#fff}.toggle-container{display:flex;justify-content:center;align-items:center;gap:12px;margin:24px 0}.toggle-label{font-size:1em;letter-spacing:1px;text-transform:uppercase;color:#ccc;transition:color .3s}.toggle-status{font-size:.85em;letter-spacing:1px;color:#666;min-width:80px;transition:color .3s}input:checked~.toggle-status{color:#fff}input:checked~.toggle-label{color:#fff}@media (max-width:600px){.lang-selector{top:8px;left:8px;font-size:.7em;padding:4px;gap:2px}.lang-btn{padding:2px 6px;min-width:32px;font-size:.65em}.connection-indicator{top:48px;right:8px;left:8px;max-width:none;font-size:.7em;padding:4px 8px}.tabs{flex-direction:column}.tab+.tab{margin-left:0;margin-top:4px}.button-bar{flex-wrap:nowrap!important;gap:4px!important}.button-bar>div{gap:4px!important;min-width:0}.button-bar button{padding:8px 10px!important;font-size:.7em!important;min-width:0;letter-spacing:0}.ap-info-row,.smtp-info-row{flex-direction:column;gap:4px}.ap-info-label,.smtp-info-label{text-align:center;min-width:auto}}</style>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;background:#000;color:#fff;line-height:1.4;font-size:14px}a{color:#fff}.container{max-width:820px;margin:0 auto;padding:16px}.header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #333}.header h1{font-size:1.8em;font-weight:normal;letter-spacing:2px}.device-id{color:#777;font-size:.9em;margin-top:4px}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;border:1px solid #333;padding:12px}.status-card{text-align:center}.status-label{color:#666;font-size:.8em;margin-bottom:4px;text-transform:uppercase}.status-value{font-size:1.2em;color:#fff;min-height:1.2em}.timer-readout{text-align:center;border:1px solid #333;padding:18px;margin-bottom:16px}.timer-readout .value{font-size:2.6em;letter-spacing:2px}.timer-readout .label{color:#777;margin-top:6px;font-size:.85em}.button-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}button{background:transparent;border:1px solid #555;color:#fff;padding:10px 18px;font-family:monospace;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:background .2s}button:hover{background:#222}.btn-danger{border-color:#f00;color:#f00}.btn-danger:hover{background:#f00;color:#000}.btn-success{border-color:#fff;color:#fff}.btn-success:hover{background:#fff;color:#000}.btn-warning{border-color:#ff0;color:#ff0}.btn-warning:hover{background:#ff0;color:#000}.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #333;margin-bottom:8px}.tab{flex:1;min-width:140px;border:1px solid #333;border-bottom:none;background:#000;color:#666;padding:10px;cursor:pointer;text-align:center;font-size:.9em}.tab+.tab{margin-left:4px}.tab.active{color:#fff;border-color:#fff}.tab-content{border:1px solid #333;padding:20px}.tab-pane{display:none}.tab-pane.active{display:block}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}label{font-size:.85em;color:#ccc;text-transform:uppercase;letter-spacing:1px}input[type="text"],input[type="number"],input[type="password"],input[type="email"],textarea,select{width:100%;padding:10px;background:#000;border:1px solid #333;color:#fff;font-family:monospace}textarea{resize:vertical;min-height:100px}.checkbox{display:flex;align-items:center;gap:8px;font-size:.9em;color:#ccc}.section-title{border-bottom:1px solid #333;padding-bottom:6px;margin-top:8px;margin-bottom:12px;font-size:1em;letter-spacing:1px;text-transform:uppercase}.attachments{border:1px solid #333;padding:12px;margin-bottom:16px}.attachments table{width:100%;border-collapse:collapse;font-size:.85em}.attachments th,.attachments td{border-bottom:1px solid #222;padding:6px;text-align:left}.attachments th{color:#888;text-transform:uppercase;letter-spacing:1px}.file-upload{border:1px dashed #555;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer}.file-upload:hover{background:#111}.alert{display:none;margin-bottom:12px;padding:10px;border:1px solid #333;font-size:.85em}.alert.success{border-color:#fff;color:#fff}.alert.error{border-color:#f00;color:#f00}.list{border:1px solid #333;padding:10px;max-height:180px;overflow-y:auto;font-size:.85em}.list-item{border-bottom:1px solid #222;padding:6px 0;display:flex;justify-content:space-between;align-items:center}.list-item:last-child{border-bottom:none}.badge{display:inline-block;padding:2px 6px;font-size:1.5em;border:1px solid #333;margin-left:6px}.connection-indicator{position:fixed;top:12px;right:12px;border:1px solid #333;padding:6px 10px;font-size:.8em;z-index:20;background:#000;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.connection-indicator.online{border-color:#fff;color:#fff}.connection-indicator.offline{border-color:#f00;color:#f00}.lang-selector{position:fixed;top:12px;left:12px;z-index:21;background:#000;border:1px solid #333;padding:6px;display:flex;gap:4px}.lang-btn{background:transparent;border:1px solid #555;color:#888;padding:4px 10px;font-family:monospace;cursor:pointer;font-size:.75em;letter-spacing:1px;transition:all .2s;min-width:40px}.lang-btn:hover{background:#222;border-color:#fff;color:#fff}.lang-btn.active{border-color:#fff;color:#fff;font-weight:bold}.accordion{border:1px solid #333;margin-bottom:12px}.accordion-header{background:#111;border-bottom:1px solid #333;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;letter-spacing:1px;font-size:.9em;transition:background .2s}.accordion-header:hover{background:#1a1a1a}.accordion-header.active{background:#0a0a0a;color:#fff}.accordion-toggle{font-size:1.2em;transition:transform .3s}.accordion-header.active .accordion-toggle{transform:rotate(180deg);color:#fff}.accordion-content{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#0a0a0a}.accordion-content.active{max-height:2000px;padding:16px;border-top:1px solid #fff}.preset-btn{display:inline-block;padding:8px 16px;margin:4px;border:1px solid #555;background:#111;color:#ccc;cursor:pointer;text-align:center;font-size:.85em;transition:all .2s}.preset-btn:hover{background:#222;border-color:#fff}.preset-btn.active{border-color:#fff;background:#fff;color:#000}.ap-info-box{text-align:center;padding:20px;margin-bottom:20px}.ap-info-row{text-align:center;margin:8px 0;font-size:1.1em}.ap-info-label{display:block;color:#888;font-size:.9em;margin-bottom:4px}.ap-info-value{display:block;color:#fff;font-weight:bold;letter-spacing:1px}.smtp-info-box{text-align:center;padding:20px;margin-bottom:20px}.smtp-info-row{display:flex;justify-content:center;align-items:center;gap:12px;margin:8px 0;font-size:1em}.smtp-info-label{color:#888;font-size:.85em;min-width:120px;text-align:right}.smtp-info-value{color:#fff;letter-spacing:1px}.toggle-switch{position:relative;display:inline-block;width:60px;height:30px}.toggle-switch input{opacity:0;width:0;height:0}.toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#333;border:2px solid #555;transition:.3s;border-radius:30px}.toggle-slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:#666;transition:.3s;border-radius:50%}input:checked+.toggle-slider{background:#000;border-color:#fff}input:checked+.toggle-slider:before{transform:translateX(30px);background:#fff}.toggle-container{display:flex;justify-content:center;align-items:center;gap:12px;margin:24px 0}.toggle-label{font-size:1em;letter-spacing:1px;text-transform:uppercase;color:#ccc;transition:color .3s}.toggle-status{font-size:.85em;letter-spacing:1px;color:#666;min-width:80px;transition:color .3s}input:checked~.toggle-status{color:#fff}input:checked~.toggle-label{color:#fff}@media (max-width:600px){.lang-selector{top:8px;left:8px;font-size:.7em;padding:4px;gap:2px}.lang-btn{padding:2px 6px;min-width:32px;font-size:.65em}.connection-indicator{top:48px;right:8px;left:8px;max-width:none;font-size:.7em;padding:4px 8px}.tabs{flex-direction:column}.tab+.tab{margin-left:0;margin-top:4px}.button-bar{flex-wrap:nowrap!important;gap:4px!important}.button-bar>div{gap:4px!important;min-width:0}.button-bar button{padding:8px 10px!important;font-size:.7em!important;min-width:0;letter-spacing:0}.ap-info-row{font-size:1em}.ap-info-label,.smtp-info-label{text-align:center;min-width:auto}}</style>
 </head>
 <body>
     <div id="mainApp" style="display:block;">
@@ -307,6 +308,10 @@ This is a SmartKraft DMF early warning message.</textarea>
                                 <span class="ap-info-label" data-i18n="wifi.apIPAddress">IP Adresi</span>
                                 <span class="ap-info-value">192.168.4.1</span>
                             </div>
+                            <div class="ap-info-row">
+                                <span class="ap-info-label" data-i18n="wifi.apMDNS">mDNS</span>
+                                <span class="ap-info-value">smartkraft-dmf-<span id="apMdnsChipId">XXXX</span>.local</span>
+                            </div>
                         </div>
                         
                         <!-- Toggle Switch -->
@@ -370,6 +375,11 @@ This is a SmartKraft DMF early warning message.</textarea>
                                 <label data-i18n="wifi.staDNS">Primary DNS</label>
                                 <input type="text" id="primaryDNS" placeholder="192.168.1.1">
                             </div>
+                            <div class="form-group">
+                                <label data-i18n="wifi.mdnsHostname">mDNS Hostname (.local)</label>
+                                <input type="text" id="primaryMDNS" placeholder="dmf" maxlength="32" pattern="[a-zA-Z0-9-]*">
+                                <small style="color:#888;font-size:0.85em;display:block;margin-top:4px;" data-i18n="wifi.mdnsHelp">Sadece hostname girin (.local yazmayın). Örn: "dmf" → "dmf.local"</small>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -417,6 +427,11 @@ This is a SmartKraft DMF early warning message.</textarea>
                             <div class="form-group">
                                 <label data-i18n="wifi.staDNS">Primary DNS</label>
                                 <input type="text" id="secondaryDNS" placeholder="192.168.1.1">
+                            </div>
+                            <div class="form-group">
+                                <label data-i18n="wifi.mdnsHostname">mDNS Hostname (.local)</label>
+                                <input type="text" id="secondaryMDNS" placeholder="dmf" maxlength="32" pattern="[a-zA-Z0-9-]*">
+                                <small style="color:#888;font-size:0.85em;display:block;margin-top:4px;" data-i18n="wifi.mdnsHelp">Sadece hostname girin (.local yazmayın). Örn: "dmf" → "dmf.local"</small>
                             </div>
                         </div>
                     </div>
@@ -497,22 +512,25 @@ This is a SmartKraft DMF early warning message.</textarea>
                         <strong data-i18n="info.feature1">→ Virtual Button:</strong> <span data-i18n="info.feature1Text" style="color:#999;">Reset timer remotely via web interface or custom API endpoint</span>
                     </div>
                     <div style="margin-bottom:8px;">
-                        <strong data-i18n="info.feature2">→ Custom API:</strong> <span data-i18n="info.feature2Text" style="color:#999;">Create custom HTTP endpoint for home automation (Home Assistant, Node-RED)</span>
+                        <strong data-i18n="info.feature2">→ Virtual Button API:</strong> <span data-i18n="info.feature2Text" style="color:#999;">Create custom HTTP endpoint for home automation (Home Assistant, Node-RED)</span>
                     </div>
                     <div style="margin-bottom:8px;">
                         <strong data-i18n="info.feature3">→ Emergency WiFi:</strong> <span data-i18n="info.feature3Text" style="color:#999;">Automatically connects to open networks if primary/backup WiFi fails</span>
                     </div>
                     <div style="margin-bottom:8px;">
-                        <strong data-i18n="info.feature4">→ Email Attachments:</strong> <span data-i18n="info.feature4Text" style="color:#999;">Attach up to 5 files (500KB each) to warning or final emails</span>
+                        <strong data-i18n="info.feature4">→ Email Attachments:</strong> <span data-i18n="info.feature4Text" style="color:#999;">Total storage: 900KB for all mail groups combined</span>
                     </div>
                     <div style="margin-bottom:8px;">
                         <strong data-i18n="info.feature5">→ Multi-language:</strong> <span data-i18n="info.feature5Text" style="color:#999;">Interface available in English, German, and Turkish</span>
                     </div>
+                    <div style="margin-bottom:8px;">
+                        <strong data-i18n="info.feature6">→ mDNS Hostname:</strong> <span data-i18n="info.feature6Text" style="color:#999;">Custom device name for each WiFi network (easy .local access)</span>
+                    </div>
                 </div>
 
-                <div class="section-title" data-i18n="info.apiTitle">Custom API Setup</div>
+                <div class="section-title" data-i18n="info.apiTitle">Virtual Button API Setup</div>
                 <div style="font-size:0.85em; line-height:1.6; color:#ccc; margin-bottom:20px;">
-                    <span data-i18n="info.apiText1">Go to Connection Settings → Custom API Endpoint → Enable → Set endpoint name (e.g., "trigger") → Optional: Enable token authentication → Save</span><br><br>
+                    <span data-i18n="info.apiText1">Go to Connection Settings → Virtual Button API Endpoint → Enable → Set endpoint name (e.g., "trigger") → Optional: Enable token authentication → Save</span><br><br>
                     <span data-i18n="info.apiText2">Example usage:</span>
                     <div style="background:#0a0a0a; border:1px solid #333; padding:8px; margin-top:8px; font-family:monospace; font-size:0.8em; color:#fff;">
                         curl -X POST http://192.168.1.100/api/trigger
@@ -532,8 +550,8 @@ This is a SmartKraft DMF early warning message.</textarea>
                     <div style="margin-bottom:6px;" data-i18n="info.tech1">• Processor: ESP32-C6 (RISC-V, WiFi 6)</div>
                     <div style="margin-bottom:6px;" data-i18n="info.tech2">• Storage: LittleFS filesystem</div>
                     <div style="margin-bottom:6px;" data-i18n="info.tech3">• WiFi: Dual mode (AP + STA)</div>
-                    <div style="margin-bottom:6px;" data-i18n="info.tech4">• Power: USB-C 5V</div>
-                    <div style="margin-bottom:6px;" data-i18n="info.tech5">• Output: Relay control</div>
+                    <div style="margin-bottom:6px;" data-i18n="info.tech4">• Power: USB-C 5V DC or 230V AC</div>
+                    <div style="margin-bottom:6px;" data-i18n="info.tech5">• Output: URL API trigger and onboard relay pins (max 5V / 30mA) with physical button support</div>
                 </div>
 
                 <div style="border-top:1px solid #333; padding-top:20px; margin-top:30px; text-align:center;">
@@ -1162,10 +1180,12 @@ This is a SmartKraft DMF early warning message.</textarea>
                     primaryGateway: w.primaryGateway,
                     primarySubnet: w.primarySubnet,
                     primaryDNS: w.primaryDNS,
+                    primaryMDNS: w.primaryMDNS,
                     secondaryIP: w.secondaryIP,
                     secondaryGateway: w.secondaryGateway,
                     secondarySubnet: w.secondarySubnet,
-                    secondaryDNS: w.secondaryDNS
+                    secondaryDNS: w.secondaryDNS,
+                    secondaryMDNS: w.secondaryMDNS
                 };
                 Object.keys(map).forEach(id => { const el = document.getElementById(id); if (el) el.value = map[id] || ''; });
                 document.getElementById('wifiAllowOpen').checked = !!w.allowOpenNetworks;
@@ -1181,6 +1201,8 @@ This is a SmartKraft DMF early warning message.</textarea>
                     const chipId = status.deviceId.split('-').pop(); // "SmartKraft DMF-7FFE" → "7FFE"
                     const apChipIdEl = document.getElementById('apChipId');
                     if (apChipIdEl) apChipIdEl.textContent = chipId || 'XXXX';
+                    const apMdnsChipIdEl = document.getElementById('apMdnsChipId');
+                    if (apMdnsChipIdEl) apMdnsChipIdEl.textContent = chipId || 'XXXX';
                 }
                 document.getElementById('secondaryStaticEnabled').checked = !!w.secondaryStaticEnabled;
                 updateToggleStatus(document.getElementById('secondaryStaticEnabled'), 'secondaryStaticStatus');
@@ -1189,6 +1211,10 @@ This is a SmartKraft DMF early warning message.</textarea>
 
         async function saveWiFiSettings() {
             try {
+                // mDNS değerlerini temizle (.local suffix'i kaldır)
+                const primaryMDNS = document.getElementById('primaryMDNS').value.replace('.local', '').trim();
+                const secondaryMDNS = document.getElementById('secondaryMDNS').value.replace('.local', '').trim();
+                
                 const payload = {
                     primarySSID: document.getElementById('wifiPrimarySsid').value,
                     primaryPassword: document.getElementById('wifiPrimaryPassword').value,
@@ -1201,11 +1227,13 @@ This is a SmartKraft DMF early warning message.</textarea>
                     primaryGateway: document.getElementById('primaryGateway').value,
                     primarySubnet: document.getElementById('primarySubnet').value,
                     primaryDNS: document.getElementById('primaryDNS').value,
+                    primaryMDNS: primaryMDNS,
                     secondaryStaticEnabled: document.getElementById('secondaryStaticEnabled').checked,
                     secondaryIP: document.getElementById('secondaryIP').value,
                     secondaryGateway: document.getElementById('secondaryGateway').value,
                     secondarySubnet: document.getElementById('secondarySubnet').value,
-                    secondaryDNS: document.getElementById('secondaryDNS').value
+                    secondaryDNS: document.getElementById('secondaryDNS').value,
+                    secondaryMDNS: secondaryMDNS
                 };
                 console.log('WiFi kaydet payload:', payload);
                 await api('/api/wifi', { method: 'PUT', body: payload });
@@ -1222,7 +1250,7 @@ This is a SmartKraft DMF early warning message.</textarea>
                 const target = document.getElementById('wifiScanResults');
                 if (!result.networks || result.networks.length === 0) { target.innerHTML = 'Ağ bulunamadı'; }
                 else {
-                    target.innerHTML = result.networks.map(net => `<div class="list-item">${net.ssid || '<adı yok>'}<span class="badge">RSSI ${net.rssi}</span><span class="badge">${net.open ? 'AÇIK' : 'ŞİFRELİ'}</span>${net.current ? '<span class=\"badge\">AKTİF</span>' : ''}</div>`).join('');
+                    target.innerHTML = result.networks.map(net => `<div class="list-item">${net.ssid || '<adı yok>'}<span class="badge">${net.open ? 'ŞİFRESİZ' : 'ŞİFRELİ'}</span>${net.current ? '<span class=\"badge\">AKTİF</span>' : ''}</div>`).join('');
                 }
             } catch (err) { showAlert('wifiAlert', err.message || 'Taramada hata', 'error'); }
         }
@@ -1850,6 +1878,9 @@ void WebInterface::startServer() {
         if (dnsServer) {
             dnsServer->start(53, "*", WiFi.softAPIP());
         }
+        
+        // AP Mode için mDNS başlat
+        startAPModeMDNS();
     } else {
         // DNS sunucusunu durdur
         if (dnsServer) {
@@ -2347,11 +2378,13 @@ void WebInterface::handleWiFiGet() {
     doc["primaryGateway"] = wifi.primaryGateway;
     doc["primarySubnet"] = wifi.primarySubnet;
     doc["primaryDNS"] = wifi.primaryDNS;
+    doc["primaryMDNS"] = wifi.primaryMDNS;
     doc["secondaryStaticEnabled"] = wifi.secondaryStaticEnabled;
     doc["secondaryIP"] = wifi.secondaryIP;
     doc["secondaryGateway"] = wifi.secondaryGateway;
     doc["secondarySubnet"] = wifi.secondarySubnet;
     doc["secondaryDNS"] = wifi.secondaryDNS;
+    doc["secondaryMDNS"] = wifi.secondaryMDNS;
     sendJson(doc);
 }
 
@@ -2372,11 +2405,22 @@ void WebInterface::handleWiFiUpdate() {
     wifi.primaryGateway = doc["primaryGateway"].as<String>();
     wifi.primarySubnet = doc["primarySubnet"].as<String>();
     wifi.primaryDNS = doc["primaryDNS"].as<String>();
+    wifi.primaryMDNS = doc["primaryMDNS"].as<String>();
+    // .local suffix'ini kaldır (mDNS otomatik ekler)
+    wifi.primaryMDNS.replace(".local", "");
+    wifi.primaryMDNS.trim();
+    Serial.printf("[WiFi] Primary mDNS ayarlandı: '%s'\n", wifi.primaryMDNS.c_str());
+    
     wifi.secondaryStaticEnabled = doc["secondaryStaticEnabled"].as<bool>();
     wifi.secondaryIP = doc["secondaryIP"].as<String>();
     wifi.secondaryGateway = doc["secondaryGateway"].as<String>();
     wifi.secondarySubnet = doc["secondarySubnet"].as<String>();
     wifi.secondaryDNS = doc["secondaryDNS"].as<String>();
+    wifi.secondaryMDNS = doc["secondaryMDNS"].as<String>();
+    // .local suffix'ini kaldır (mDNS otomatik ekler)
+    wifi.secondaryMDNS.replace(".local", "");
+    wifi.secondaryMDNS.trim();
+    Serial.printf("[WiFi] Secondary mDNS ayarlandı: '%s'\n", wifi.secondaryMDNS.c_str());
     
     // Ayarları kaydet
     network->setConfig(wifi);
@@ -2390,12 +2434,14 @@ void WebInterface::handleWiFiUpdate() {
         WiFi.mode(WIFI_AP_STA);
         WiFi.softAP(apName.c_str()); // Şifresiz AP
         if (dnsServer) dnsServer->start(53, "*", WiFi.softAPIP());
+        startAPModeMDNS(); // AP Mode için mDNS başlat
         Serial.printf("[WiFi] AP modu açıldı (Dual mode): %s\n", apName.c_str());
     } else if (wifi.apModeEnabled && !isStaConnected) {
         // Sadece AP
         WiFi.mode(WIFI_AP);
         WiFi.softAP(apName.c_str()); // Şifresiz AP
         if (dnsServer) dnsServer->start(53, "*", WiFi.softAPIP());
+        startAPModeMDNS(); // AP Mode için mDNS başlat
         Serial.printf("[WiFi] AP modu açıldı (Sadece AP): %s\n", apName.c_str());
     } else if (!wifi.apModeEnabled && isStaConnected) {
         // Sadece STA - AP'yi kapat
@@ -2413,6 +2459,12 @@ void WebInterface::handleWiFiUpdate() {
     
     // Yeni ayarlarla bağlantıyı dene
     network->ensureConnected(false);
+    
+    // mDNS'i yenile (eğer STA modunda bağlıysak, hostname değişmiş olabilir)
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println(F("[WiFi] mDNS yenileniyor..."));
+        network->refreshMDNS();
+    }
     
     server->send(204);
 }
@@ -2692,4 +2744,33 @@ void WebInterface::handleReboot() {
     sendJson(doc);
     delay(200);
     ESP.restart();
+}
+
+// ============================================
+// Helper Functions
+// ============================================
+String WebInterface::getChipIdHex() {
+    uint32_t chipId = 0;
+    for(int i=0; i<17; i=i+8) {
+        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+    }
+    String chipIdStr = String(chipId, HEX);
+    chipIdStr.toUpperCase();
+    if (chipIdStr.length() > 4) {
+        chipIdStr = chipIdStr.substring(chipIdStr.length() - 4);
+    }
+    return chipIdStr;
+}
+
+void WebInterface::startAPModeMDNS() {
+    String chipIdStr = getChipIdHex();
+    String apMdnsHostname = "smartkraft-dmf-" + chipIdStr;
+    
+    MDNS.end(); // Önceki mDNS'i durdur
+    if (MDNS.begin(apMdnsHostname.c_str())) {
+        Serial.printf("[mDNS] ✓ AP Mode başlatıldı: %s.local\n", apMdnsHostname.c_str());
+        MDNS.addService("http", "tcp", 80);
+    } else {
+        Serial.println(F("[mDNS] ✗ AP Mode başlatılamadı"));
+    }
 }

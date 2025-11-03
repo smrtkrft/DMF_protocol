@@ -205,6 +205,7 @@ bool DMFNetworkManager::connectTo(const String &ssid, const String &password, ui
         
         if (currentStatus == WL_CONNECTED) {
             Serial.printf("[WiFi] Bağlantı başarılı: %s\n", WiFi.localIP().toString().c_str());
+            startMDNS(ssid); // mDNS'i başlat
             return true;
         }
         
@@ -497,3 +498,83 @@ void DMFNetworkManager::performOTAUpdate(String latestVersion) {
     
     http.end();
 }
+
+// ============================================
+// Helper Functions
+// ============================================
+String DMFNetworkManager::getChipIdHex() {
+    uint32_t chipId = 0;
+    for(int i=0; i<17; i=i+8) {
+        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+    }
+    String chipIdStr = String(chipId, HEX);
+    chipIdStr.toUpperCase();
+    if (chipIdStr.length() > 4) {
+        chipIdStr = chipIdStr.substring(chipIdStr.length() - 4);
+    }
+    return chipIdStr;
+}
+
+// ============================================
+// mDNS Başlatma Fonksiyonu
+// ============================================
+void DMFNetworkManager::startMDNS(const String &connectedSSID) {
+    String chipIdStr = getChipIdHex();
+    String mdnsHostname = "smartkraft-dmf-" + chipIdStr; // Varsayılan: smartkraft-dmf-XXXX
+    
+    Serial.printf("[mDNS] Bağlı SSID: %s\n", connectedSSID.c_str());
+    Serial.printf("[mDNS] Primary SSID: %s (mDNS: '%s')\n", current.primarySSID.c_str(), current.primaryMDNS.c_str());
+    Serial.printf("[mDNS] Secondary SSID: %s (mDNS: '%s')\n", current.secondarySSID.c_str(), current.secondaryMDNS.c_str());
+    
+    // Hangi ağa bağlandığımıza göre mDNS hostname belirle
+    if (connectedSSID == current.primarySSID && current.primaryMDNS.length() > 0) {
+        // Primary WiFi: Kullanıcı tanımlı hostname kullan
+        mdnsHostname = current.primaryMDNS;
+        // ".local" suffix'i varsa kaldır
+        mdnsHostname.replace(".local", "");
+        mdnsHostname.trim();
+        Serial.printf("[mDNS] ✓ Primary WiFi hostname seçildi: %s\n", mdnsHostname.c_str());
+    } else if (connectedSSID == current.secondarySSID && current.secondaryMDNS.length() > 0) {
+        // Secondary WiFi: Kullanıcı tanımlı hostname kullan
+        mdnsHostname = current.secondaryMDNS;
+        // ".local" suffix'i varsa kaldır
+        mdnsHostname.replace(".local", "");
+        mdnsHostname.trim();
+        Serial.printf("[mDNS] ✓ Secondary WiFi hostname seçildi: %s\n", mdnsHostname.c_str());
+    } else {
+        // Emergency open network veya tanımsız: Chip ID kullan
+        Serial.printf("[mDNS] ℹ Emergency/Unknown network, chip ID hostname kullanılıyor: %s\n", mdnsHostname.c_str());
+    }
+    
+    // Boş hostname kontrolü
+    if (mdnsHostname.length() == 0) {
+        mdnsHostname = "smartkraft-dmf-" + chipIdStr;
+        Serial.println(F("[mDNS] Boş hostname, chip ID kullanılıyor"));
+    }
+    
+    // Önceki mDNS instance'ını durdur
+    MDNS.end();
+    delay(100); // mDNS için kısa bekleme
+    
+    // mDNS'i başlat
+    if (MDNS.begin(mdnsHostname.c_str())) {
+        Serial.printf("[mDNS] ✓ Başlatıldı: %s.local\n", mdnsHostname.c_str());
+        MDNS.addService("http", "tcp", 80); // Web sunucusu için
+    } else {
+        Serial.println(F("[mDNS] ✗ Başlatılamadı"));
+    }
+}
+
+// ============================================
+// mDNS Yenileme (ayarlar değiştiğinde çağrılır)
+// ============================================
+void DMFNetworkManager::refreshMDNS() {
+    String currentSSID = WiFi.SSID();
+    if (currentSSID.length() > 0 && WiFi.status() == WL_CONNECTED) {
+        Serial.printf("[mDNS] Yenileme istendi, mevcut SSID: %s\n", currentSSID.c_str());
+        startMDNS(currentSSID);
+    } else {
+        Serial.println(F("[mDNS] WiFi bağlı değil, mDNS başlatılamadı"));
+    }
+}
+

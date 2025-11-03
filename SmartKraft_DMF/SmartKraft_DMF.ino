@@ -3,6 +3,7 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <LittleFS.h>
+#include <ESPmDNS.h>
 #include <esp_system.h>
 #include <DNSServer.h>
 #include <esp_pm.h>        // Güç yönetimi için
@@ -26,7 +27,7 @@
 #define DEBUG_PRINTLN(level, ...) if (DEBUG_LEVEL >= level) Serial.println(__VA_ARGS__)
 
 // Firmware Version
-#define FIRMWARE_VERSION "v1.0.4"
+#define FIRMWARE_VERSION "v1.0.5"
 
 // Pin tanımları - XIAO ESP32C6 (GERÇEK TEST EDİLMİŞ DEĞERLER)
 // Kaynak: C6-Pin&Gpio.md

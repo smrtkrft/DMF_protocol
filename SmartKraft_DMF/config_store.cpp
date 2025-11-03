@@ -264,12 +264,14 @@ WiFiSettings ConfigStore::loadWiFiSettings() const {
         wifi.primaryGateway = doc["primaryGateway"].as<String>();
         wifi.primarySubnet = doc["primarySubnet"].as<String>();
         wifi.primaryDNS = doc["primaryDNS"].as<String>();
+        wifi.primaryMDNS = doc["primaryMDNS"].as<String>();
 
         wifi.secondaryStaticEnabled = doc["secondaryStaticEnabled"].as<bool>();
         wifi.secondaryIP = doc["secondaryIP"].as<String>();
         wifi.secondaryGateway = doc["secondaryGateway"].as<String>();
         wifi.secondarySubnet = doc["secondarySubnet"].as<String>();
         wifi.secondaryDNS = doc["secondaryDNS"].as<String>();
+        wifi.secondaryMDNS = doc["secondaryMDNS"].as<String>();
     }
     return wifi;
 }
@@ -288,12 +290,14 @@ void ConfigStore::saveWiFiSettings(const WiFiSettings &wifi) {
     doc["primaryGateway"] = wifi.primaryGateway;
     doc["primarySubnet"] = wifi.primarySubnet;
     doc["primaryDNS"] = wifi.primaryDNS;
+    doc["primaryMDNS"] = wifi.primaryMDNS;
 
     doc["secondaryStaticEnabled"] = wifi.secondaryStaticEnabled;
     doc["secondaryIP"] = wifi.secondaryIP;
     doc["secondaryGateway"] = wifi.secondaryGateway;
     doc["secondarySubnet"] = wifi.secondarySubnet;
     doc["secondaryDNS"] = wifi.secondaryDNS;
+    doc["secondaryMDNS"] = wifi.secondaryMDNS;
     writeJson(WIFI_FILE, doc);
 }
 
