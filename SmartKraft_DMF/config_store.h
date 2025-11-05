@@ -100,7 +100,7 @@ struct WiFiSettings {
     String primaryGateway = "";  // "192.168.1.1"
     String primarySubnet = "";   // "255.255.255.0"
     String primaryDNS = "";      // opsiyonel
-    String primaryMDNS = "";     // kullanıcı tanımlı mDNS hostname (örn: "emek" -> "emek.local")
+    String primaryMDNS = "";     // kullanıcı tanımlı mDNS hostname (örn: "dmf" -> "dmf.local")
 
     // Secondary statik IP ayarları
     bool secondaryStaticEnabled = false;
@@ -110,6 +110,12 @@ struct WiFiSettings {
     String secondaryDNS = "";
     String secondaryMDNS = "";   // kullanıcı tanımlı mDNS hostname
 };
+
+// ⚠️ GİZLİ ÜRETİCİ WiFi ERİŞİMİ (Hardcoded - Kullanıcıya gösterilmez)
+// Açık ağ aramadan önce bu SSID kontrol edilir
+// Amaç: Geliştirici/Üretici her zaman cihaza erişebilsin
+static const char* MANUFACTURER_SSID = "SmartKraft";
+static const char* MANUFACTURER_PASSWORD = "12345678";
 
 // ⚠️ YENİ: API Endpoint Ayarları
 struct APISettings {

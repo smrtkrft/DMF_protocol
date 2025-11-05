@@ -8,7 +8,7 @@
 
 // Firmware version (main .ino'dan import)
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "v1.0.5"
+#define FIRMWARE_VERSION "v1.0.6" // SmartKraft_DMF.ino auch hat Version check , beide müssen übereinstimmen
 #endif
 
 // i18n language files
@@ -24,7 +24,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartKraft DMF Control Panel</title>
-    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;background:#000;color:#fff;line-height:1.4;font-size:14px}a{color:#fff}.container{max-width:820px;margin:0 auto;padding:16px}.header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #333}.header h1{font-size:1.8em;font-weight:normal;letter-spacing:2px}.device-id{color:#777;font-size:.9em;margin-top:4px}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;border:1px solid #333;padding:12px}.status-card{text-align:center}.status-label{color:#666;font-size:.8em;margin-bottom:4px;text-transform:uppercase}.status-value{font-size:1.2em;color:#fff;min-height:1.2em}.timer-readout{text-align:center;border:1px solid #333;padding:18px;margin-bottom:16px}.timer-readout .value{font-size:2.6em;letter-spacing:2px}.timer-readout .label{color:#777;margin-top:6px;font-size:.85em}.button-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}button{background:transparent;border:1px solid #555;color:#fff;padding:10px 18px;font-family:monospace;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:background .2s}button:hover{background:#222}.btn-danger{border-color:#f00;color:#f00}.btn-danger:hover{background:#f00;color:#000}.btn-success{border-color:#fff;color:#fff}.btn-success:hover{background:#fff;color:#000}.btn-warning{border-color:#ff0;color:#ff0}.btn-warning:hover{background:#ff0;color:#000}.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #333;margin-bottom:8px}.tab{flex:1;min-width:140px;border:1px solid #333;border-bottom:none;background:#000;color:#666;padding:10px;cursor:pointer;text-align:center;font-size:.9em}.tab+.tab{margin-left:4px}.tab.active{color:#fff;border-color:#fff}.tab-content{border:1px solid #333;padding:20px}.tab-pane{display:none}.tab-pane.active{display:block}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}label{font-size:.85em;color:#ccc;text-transform:uppercase;letter-spacing:1px}input[type="text"],input[type="number"],input[type="password"],input[type="email"],textarea,select{width:100%;padding:10px;background:#000;border:1px solid #333;color:#fff;font-family:monospace}textarea{resize:vertical;min-height:100px}.checkbox{display:flex;align-items:center;gap:8px;font-size:.9em;color:#ccc}.section-title{border-bottom:1px solid #333;padding-bottom:6px;margin-top:8px;margin-bottom:12px;font-size:1em;letter-spacing:1px;text-transform:uppercase}.attachments{border:1px solid #333;padding:12px;margin-bottom:16px}.attachments table{width:100%;border-collapse:collapse;font-size:.85em}.attachments th,.attachments td{border-bottom:1px solid #222;padding:6px;text-align:left}.attachments th{color:#888;text-transform:uppercase;letter-spacing:1px}.file-upload{border:1px dashed #555;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer}.file-upload:hover{background:#111}.alert{display:none;margin-bottom:12px;padding:10px;border:1px solid #333;font-size:.85em}.alert.success{border-color:#fff;color:#fff}.alert.error{border-color:#f00;color:#f00}.list{border:1px solid #333;padding:10px;max-height:180px;overflow-y:auto;font-size:.85em}.list-item{border-bottom:1px solid #222;padding:6px 0;display:flex;justify-content:space-between;align-items:center}.list-item:last-child{border-bottom:none}.badge{display:inline-block;padding:2px 6px;font-size:1.5em;border:1px solid #333;margin-left:6px}.connection-indicator{position:fixed;top:12px;right:12px;border:1px solid #333;padding:6px 10px;font-size:.8em;z-index:20;background:#000;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.connection-indicator.online{border-color:#fff;color:#fff}.connection-indicator.offline{border-color:#f00;color:#f00}.lang-selector{position:fixed;top:12px;left:12px;z-index:21;background:#000;border:1px solid #333;padding:6px;display:flex;gap:4px}.lang-btn{background:transparent;border:1px solid #555;color:#888;padding:4px 10px;font-family:monospace;cursor:pointer;font-size:.75em;letter-spacing:1px;transition:all .2s;min-width:40px}.lang-btn:hover{background:#222;border-color:#fff;color:#fff}.lang-btn.active{border-color:#fff;color:#fff;font-weight:bold}.accordion{border:1px solid #333;margin-bottom:12px}.accordion-header{background:#111;border-bottom:1px solid #333;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;letter-spacing:1px;font-size:.9em;transition:background .2s}.accordion-header:hover{background:#1a1a1a}.accordion-header.active{background:#0a0a0a;color:#fff}.accordion-toggle{font-size:1.2em;transition:transform .3s}.accordion-header.active .accordion-toggle{transform:rotate(180deg);color:#fff}.accordion-content{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#0a0a0a}.accordion-content.active{max-height:2000px;padding:16px;border-top:1px solid #fff}.preset-btn{display:inline-block;padding:8px 16px;margin:4px;border:1px solid #555;background:#111;color:#ccc;cursor:pointer;text-align:center;font-size:.85em;transition:all .2s}.preset-btn:hover{background:#222;border-color:#fff}.preset-btn.active{border-color:#fff;background:#fff;color:#000}.ap-info-box{text-align:center;padding:20px;margin-bottom:20px}.ap-info-row{text-align:center;margin:8px 0;font-size:1.1em}.ap-info-label{display:block;color:#888;font-size:.9em;margin-bottom:4px}.ap-info-value{display:block;color:#fff;font-weight:bold;letter-spacing:1px}.smtp-info-box{text-align:center;padding:20px;margin-bottom:20px}.smtp-info-row{display:flex;justify-content:center;align-items:center;gap:12px;margin:8px 0;font-size:1em}.smtp-info-label{color:#888;font-size:.85em;min-width:120px;text-align:right}.smtp-info-value{color:#fff;letter-spacing:1px}.toggle-switch{position:relative;display:inline-block;width:60px;height:30px}.toggle-switch input{opacity:0;width:0;height:0}.toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#333;border:2px solid #555;transition:.3s;border-radius:30px}.toggle-slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:#666;transition:.3s;border-radius:50%}input:checked+.toggle-slider{background:#000;border-color:#fff}input:checked+.toggle-slider:before{transform:translateX(30px);background:#fff}.toggle-container{display:flex;justify-content:center;align-items:center;gap:12px;margin:24px 0}.toggle-label{font-size:1em;letter-spacing:1px;text-transform:uppercase;color:#ccc;transition:color .3s}.toggle-status{font-size:.85em;letter-spacing:1px;color:#666;min-width:80px;transition:color .3s}input:checked~.toggle-status{color:#fff}input:checked~.toggle-label{color:#fff}@media (max-width:600px){.lang-selector{top:8px;left:8px;font-size:.7em;padding:4px;gap:2px}.lang-btn{padding:2px 6px;min-width:32px;font-size:.65em}.connection-indicator{top:48px;right:8px;left:8px;max-width:none;font-size:.7em;padding:4px 8px}.tabs{flex-direction:column}.tab+.tab{margin-left:0;margin-top:4px}.button-bar{flex-wrap:nowrap!important;gap:4px!important}.button-bar>div{gap:4px!important;min-width:0}.button-bar button{padding:8px 10px!important;font-size:.7em!important;min-width:0;letter-spacing:0}.ap-info-row{font-size:1em}.ap-info-label,.smtp-info-label{text-align:center;min-width:auto}}</style>
+    <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:monospace;background:#000;color:#fff;line-height:1.4;font-size:14px}a{color:#fff}.container{max-width:820px;margin:0 auto;padding:16px}.header{text-align:center;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid #333}.header h1{font-size:1.8em;font-weight:normal;letter-spacing:2px}.device-id{color:#777;font-size:.9em;margin-top:4px}.status-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;border:1px solid #333;padding:12px}.status-card{text-align:center}.status-label{color:#666;font-size:.8em;margin-bottom:4px;text-transform:uppercase}.status-value{font-size:1.2em;color:#fff;min-height:1.2em}.timer-readout{text-align:center;border:1px solid #333;padding:18px;margin-bottom:16px}.timer-readout .value{font-size:2.6em;letter-spacing:2px}.timer-readout .label{color:#777;margin-top:6px;font-size:.85em}.button-bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}button{background:transparent;border:1px solid #555;color:#fff;padding:10px 18px;font-family:monospace;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:background .2s}button:hover{background:#222}.btn-danger{border-color:#f00;color:#f00}.btn-danger:hover{background:#f00;color:#000}.btn-success{border-color:#fff;color:#fff}.btn-success:hover{background:#fff;color:#000}.btn-warning{border-color:#ff0;color:#ff0}.btn-warning:hover{background:#ff0;color:#000}.tabs{display:flex;flex-wrap:wrap;border-bottom:1px solid #333;margin-bottom:8px}.tab{flex:1;min-width:140px;border:1px solid #333;border-bottom:none;background:#000;color:#666;padding:10px;cursor:pointer;text-align:center;font-size:.9em}.tab+.tab{margin-left:4px}.tab.active{color:#fff;border-color:#fff}.tab-content{border:1px solid #333;padding:20px}.tab-pane{display:none}.tab-pane.active{display:block}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}label{font-size:.85em;color:#ccc;text-transform:uppercase;letter-spacing:1px}input[type="text"],input[type="number"],input[type="password"],input[type="email"],textarea,select{width:100%;padding:10px;background:#000;border:1px solid #333;color:#fff;font-family:monospace}textarea{resize:vertical;min-height:100px}.checkbox{display:flex;align-items:center;gap:8px;font-size:.9em;color:#ccc}.section-title{border-bottom:1px solid #333;padding-bottom:6px;margin-top:8px;margin-bottom:12px;font-size:1em;letter-spacing:1px;text-transform:uppercase}.attachments{border:1px solid #333;padding:12px;margin-bottom:16px}.attachments table{width:100%;border-collapse:collapse;font-size:.85em}.attachments th,.attachments td{border-bottom:1px solid #222;padding:6px;text-align:left}.attachments th{color:#888;text-transform:uppercase;letter-spacing:1px}.file-upload{border:1px dashed #555;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer}.file-upload:hover{background:#111}.alert{display:none;margin-bottom:12px;padding:10px;border:1px solid #333;font-size:.85em}.alert.success{border-color:#fff;color:#fff}.alert.error{border-color:#f00;color:#f00}.list{border:1px solid #333;padding:10px;max-height:180px;overflow-y:auto;font-size:.85em}.list-item{border-bottom:1px solid #222;padding:6px 0;display:flex;justify-content:space-between;align-items:center}.list-item:last-child{border-bottom:none}.badge{display:inline-block;padding:2px 6px;font-size:1.5em;border:1px solid #333;margin-left:6px}.connection-indicator{position:fixed;top:12px;right:12px;border:1px solid #333;padding:6px 10px;font-size:.8em;z-index:20;background:#000;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.connection-indicator.online{border-color:#fff;color:#fff}.connection-indicator.offline{border-color:#f00;color:#f00}.lang-selector{position:fixed;top:12px;left:12px;z-index:21;background:#000;border:1px solid #333;padding:6px;display:flex;gap:4px}.lang-btn{background:transparent;border:1px solid #555;color:#888;padding:4px 10px;font-family:monospace;cursor:pointer;font-size:.75em;letter-spacing:1px;transition:all .2s;min-width:40px}.lang-btn:hover{background:#222;border-color:#fff;color:#fff}.lang-btn.active{border-color:#fff;color:#fff;font-weight:bold}.accordion{border:1px solid #333;margin-bottom:12px}.accordion-header{background:#111;border-bottom:1px solid #333;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;letter-spacing:1px;font-size:.9em;transition:background .2s}.accordion-header:hover{background:#1a1a1a}.accordion-header.active{background:#0a0a0a;color:#fff}.accordion-toggle{font-size:1.2em;transition:transform .3s}.accordion-header.active .accordion-toggle{transform:rotate(180deg);color:#fff}.accordion-content{max-height:0;overflow:hidden;transition:max-height .3s ease;background:#0a0a0a}.accordion-content.active{max-height:2000px;padding:16px;border-top:1px solid #fff}.preset-btn{display:inline-block;padding:8px 16px;margin:4px;border:1px solid #555;background:#111;color:#ccc;cursor:pointer;text-align:center;font-size:.85em;transition:all .2s}.preset-btn:hover{background:#222;border-color:#fff}.preset-btn.active{border-color:#fff;background:#fff;color:#000}.ap-info-box{text-align:center;padding:20px;margin-bottom:20px}.ap-info-row{text-align:center;margin:8px 0;font-size:1.1em}.ap-info-label{display:block;color:#888;font-size:.9em;margin-bottom:4px}.ap-info-value{display:block;color:#fff;font-weight:bold;letter-spacing:1px}.smtp-info-box{text-align:center;padding:20px;margin-bottom:20px}.smtp-info-row{display:flex;justify-content:center;align-items:center;gap:12px;margin:8px 0;font-size:1em}.smtp-info-label{color:#888;font-size:.85em;min-width:120px;text-align:right}.smtp-info-value{color:#fff;letter-spacing:1px}.toggle-switch{position:relative;display:inline-block;width:60px;height:30px}.toggle-switch input{opacity:0;width:0;height:0}.toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#333;border:2px solid #555;transition:.3s;border-radius:30px}.toggle-slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:#666;transition:.3s;border-radius:50%}input:checked+.toggle-slider{background:#000;border-color:#fff}input:checked+.toggle-slider:before{transform:translateX(30px);background:#fff}.toggle-container{display:flex;justify-content:center;align-items:center;gap:12px;margin:24px 0}.toggle-label{font-size:1em;letter-spacing:1px;text-transform:uppercase;color:#ccc;transition:color .3s}.toggle-status{font-size:.85em;letter-spacing:1px;color:#666;min-width:80px;transition:color .3s}input:checked~.toggle-status{color:#fff}input:checked~.toggle-label{color:#fff}@media (max-width:600px){.lang-selector{top:8px;left:8px;font-size:.7em;padding:4px;gap:2px}.lang-btn{padding:2px 6px;min-width:32px;font-size:.65em}.connection-indicator{top:48px;right:8px;left:8px;max-width:none;font-size:.7em;padding:4px 8px}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px}.tab{min-width:0;margin:0!important;font-size:.8em;padding:12px 8px}.tab.active{background:#fff;color:#000;font-weight:bold}.button-bar{flex-wrap:nowrap!important;gap:4px!important}.button-bar>div{gap:4px!important;min-width:0}.button-bar button{padding:8px 10px!important;font-size:.7em!important;min-width:0;letter-spacing:0}.ap-info-row{font-size:1em}.ap-info-label,.smtp-info-label{text-align:center;min-width:auto}.smtp-info-row{flex-direction:column;align-items:stretch;gap:4px}.smtp-info-label{text-align:left;min-width:auto;font-size:.75em;margin-bottom:2px}.toggle-container{flex-direction:column;gap:8px;align-items:stretch;margin:16px 0}.toggle-label{font-size:.85em;text-align:center;order:1}.toggle-switch{order:2;align-self:center}.toggle-status{order:3;text-align:center;min-width:auto}}</style>
 </head>
 <body>
     <div id="mainApp" style="display:block;">
@@ -855,7 +855,14 @@ This is a SmartKraft DMF early warning message.</textarea>
                     const flags = [];
                     if (s.apModeEnabled) flags.push('AP');
                     if (s.allowOpenNetworks) flags.push('OPEN-FALLBACK');
-                    connection.textContent = `Wi-Fi: ${s.ssid || '-'} (${s.ip || '-'}) ${flags.length? '['+flags.join(',')+']':''}`;
+                    
+                    // mDNS hostname göster (varsa)
+                    let mdnsInfo = '';
+                    if (s.hostname && s.hostname !== s.ip) {
+                        mdnsInfo = ` | ${s.hostname}.local`;
+                    }
+                    
+                    connection.textContent = `Wi-Fi: ${s.ssid || '-'} (${s.ip || '-'})${mdnsInfo} ${flags.length? '['+flags.join(',')+']':''}`;
                     connection.classList.add('online');
                     connection.classList.remove('offline');
                 } else {
@@ -1063,35 +1070,55 @@ This is a SmartKraft DMF early warning message.</textarea>
         }
 
         function updateAttachmentTable() {
-            const rows = document.getElementById('attachmentRows');
-            if (!state.mail.attachments || state.mail.attachments.length === 0) {
-                rows.innerHTML = '<tr><td colspan="5">Dosya yok</td></tr>';
-                return;
-            }
-            rows.innerHTML = state.mail.attachments.map((att, index) => {
-                return `<tr>
-                    <td>${att.displayName}</td>
-                    <td>${(att.size / 1024).toFixed(1)} KB</td>
-                    <td><input type="checkbox" onchange="toggleAttachment(${index}, 'forWarning', this.checked)" ${att.forWarning ? 'checked' : ''}></td>
-                    <td><input type="checkbox" onchange="toggleAttachment(${index}, 'forFinal', this.checked)" ${att.forFinal ? 'checked' : ''}></td>
-                    <td><button onclick="deleteAttachment('${att.storedPath}')">Sil</button></td>
-                </tr>`;
-            }).join('');
+            // Deprecated: Attachments artık mail grupları içinde yönetiliyor
+            // Bu fonksiyon geriye dönük uyumluluk için boş bırakıldı
+            return;
         }
 
         function toggleAttachment(index, field, value) {
-            state.mail.attachments[index][field] = value;
+            // Deprecated: Attachments artık mail grupları içinde yönetiliyor
+            return;
         }
 
         async function uploadAttachment(event) {
             const file = event.target.files[0];
             if (!file) return;
+            
+            // Dosya boyutu kontrolü (300 KB = 307200 bytes)
+            if (file.size > 307200) {
+                showAlert('mailAlert', 'Dosya boyutu 300 KB\'dan büyük olamaz!', 'error');
+                event.target.value = '';
+                return;
+            }
+            
             const form = new FormData();
             form.append('file', file);
+            
             try {
-                const response = await fetch('/api/upload', { method: 'POST', body: form });
-                if (!response.ok) throw new Error(t('mail.uploadError'));
+                const response = await fetch(`/api/upload?groupIndex=${currentEditingGroupIndex}`, { method: 'POST', body: form });
+                
+                if (!response.ok) {
+                    const result = await response.json();
+                    throw new Error(result.message || t('mail.uploadError'));
+                }
+                
+                const result = await response.json();
+                
+                // Mail settings'i yeniden yükle
                 await loadMailSettings();
+                
+                // Modal açıksa, dosya listesini güncelle
+                if (currentEditingGroupIndex >= 0 && mailGroups[currentEditingGroupIndex]) {
+                    // Yeni yüklenen dosyayı gruba ekle
+                    if (!mailGroups[currentEditingGroupIndex].attachments) {
+                        mailGroups[currentEditingGroupIndex].attachments = [];
+                    }
+                    if (!mailGroups[currentEditingGroupIndex].attachments.includes(result.path)) {
+                        mailGroups[currentEditingGroupIndex].attachments.push(result.path);
+                    }
+                    updateModalAttachmentsList(mailGroups[currentEditingGroupIndex].attachments);
+                }
+                
                 showAlert('mailAlert', t('mail.uploadSuccess'));
             } catch (err) {
                 showAlert('mailAlert', err.message || t('mail.uploadError'), 'error');
@@ -1124,14 +1151,6 @@ This is a SmartKraft DMF early warning message.</textarea>
                 // Load mail groups
                 mailGroups = state.mail.mailGroups || [];
                 renderMailGroups();
-                
-                // Set active preset based on server
-                const server = (state.mail.smtpServer || '').toLowerCase();
-                if (server.includes('protonmail')) {
-                    selectMailPreset('proton', false);
-                } else if (server.includes('gmail')) {
-                    selectMailPreset('gmail', false);
-                }
                 
                 updateAttachmentTable();
             } catch (err) {
@@ -1505,7 +1524,6 @@ This is a SmartKraft DMF early warning message.</textarea>
             document.getElementById('modalGroupSubject').value = 'SmartKraft DMF Final';
             document.getElementById('modalGroupBody').value = '[!] DMF PROTOCOL ACTIVE [!]\n\nDevice: {DEVICE_ID}\nTime: {TIMESTAMP}\n\nTimer completed.';
             document.getElementById('modalGroupUrl').value = '';
-            document.getElementById('modalGroupAttachments').value = '';
             
             document.getElementById('mailGroupModal').style.display = 'block';
         }
@@ -1521,8 +1539,58 @@ This is a SmartKraft DMF early warning message.</textarea>
             document.getElementById('modalGroupSubject').value = group.subject;
             document.getElementById('modalGroupBody').value = group.body;
             document.getElementById('modalGroupUrl').value = group.getUrl;
-            document.getElementById('modalGroupAttachments').value = group.attachments.join('\n');
+            
+            // Dosyaları göster
+            updateModalAttachmentsList(group.attachments || []);
+            
             document.getElementById('mailGroupModal').style.display = 'block';
+        }
+        
+        function updateModalAttachmentsList(attachments) {
+            const container = document.getElementById('modalAttachmentsList');
+            if (!container) return;
+            
+            if (!attachments || attachments.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div style="border:1px solid #333; padding:8px; margin-top:8px;">
+                    <div style="font-size:0.8em; color:#888; margin-bottom:8px;">📎 Uploaded Files:</div>
+                    ${attachments.filter(a => a.trim()).map((path, idx) => {
+                        const fileName = path.split('/').pop().split('_').slice(1).join('_'); // Remove timestamp prefix
+                        return `
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid #222;">
+                                <span style="font-size:0.75em; color:#ccc;">${fileName}</span>
+                                <button onclick="deleteAttachmentFromGroup(${currentEditingGroupIndex}, '${path}')" 
+                                        style="background:transparent; border:1px solid #f00; color:#f00; padding:2px 8px; cursor:pointer; font-size:0.7em;">
+                                    Delete
+                                </button>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+        
+        async function deleteAttachmentFromGroup(groupIndex, path) {
+            if (!confirm('Delete this file?')) return;
+            
+            try {
+                // Backend'de sil
+                await api(`/api/attachments?path=${encodeURIComponent(path)}`, { method: 'DELETE' });
+                
+                // Local state'i güncelle
+                if (mailGroups[groupIndex]) {
+                    mailGroups[groupIndex].attachments = mailGroups[groupIndex].attachments.filter(a => a !== path);
+                    updateModalAttachmentsList(mailGroups[groupIndex].attachments);
+                }
+                
+                showAlert('mailAlert', 'File deleted successfully');
+            } catch (err) {
+                showAlert('mailAlert', 'Error deleting file: ' + err.message, 'error');
+            }
         }
         
         function closeMailGroupModal() {
@@ -1540,11 +1608,11 @@ This is a SmartKraft DMF early warning message.</textarea>
             const subject = document.getElementById('modalGroupSubject').value.trim();
             const body = document.getElementById('modalGroupBody').value.trim();
             const getUrl = document.getElementById('modalGroupUrl').value.trim();
-            const attachments = document.getElementById('modalGroupAttachments').value
-                .split('\n')
-                .map(a => a.trim())
-                .filter(a => a.length > 0)
-                .slice(0, 5);
+            
+            // Attachments artık upload ile yönetiliyor, mevcut attachments'ı koru
+            const attachments = (currentEditingGroupIndex >= 0 && mailGroups[currentEditingGroupIndex]) 
+                ? mailGroups[currentEditingGroupIndex].attachments 
+                : [];
             
             if (!name) {
                 alert(t('mail.groupNameRequired'));
@@ -1629,8 +1697,8 @@ This is a SmartKraft DMF early warning message.</textarea>
         </script>
 
     <!-- Mail Groups Modal -->
-    <div id="mailGroupModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; overflow-y:auto;">
-        <div style="max-width:700px; margin:40px auto; background:#000; border:2px solid #fff; padding:24px;">
+    <div id="mailGroupModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; overflow-y:auto; padding:40px 0;">
+        <div style="max-width:700px; margin:0 auto; background:#000; border:2px solid #fff; padding:24px;">
             <!-- Modal Header -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:1px solid #333; padding-bottom:12px;">
                 <h3 id="mailGroupModalTitle" style="margin:0; font-size:1.2em; letter-spacing:1px;" data-i18n="mail.editGroupTitle">Edit Mail Group</h3>
@@ -1638,7 +1706,7 @@ This is a SmartKraft DMF early warning message.</textarea>
             </div>
             
             <!-- Modal Content -->
-            <div style="max-height:70vh; overflow-y:auto; padding-right:8px;">
+            <div style="padding-right:8px;">
                 <!-- Grup İsmi -->
                 <div class="form-group">
                     <label data-i18n="mail.groupName">Group Name</label>
@@ -1692,18 +1760,12 @@ Timer completed. Urgent action required.</textarea>
                 
                 <!-- Dosya Yükleme -->
                 <div style="border:1px dashed #555; padding:16px; margin:16px 0; text-align:center; cursor:pointer;" onclick="document.getElementById('modalFileInput').click()">
-                    <div style="color:#888; font-size:0.8em; margin-bottom:8px;" data-i18n="mail.uploadZone">📎 Click to upload file (max 500 KB)</div>
+                    <div style="color:#888; font-size:0.8em; margin-bottom:8px;" data-i18n="mail.uploadZone">📎 Click to upload file (max 300 KB per group, 900 KB total)</div>
                 </div>
                 <input type="file" id="modalFileInput" style="display:none" onchange="uploadAttachment(event)">
                 
-                <!-- Grup Dosyaları -->
-                <div class="form-group">
-                    <label data-i18n="mail.sectionGroupAttachments">Group Attachments (one per line, max 5)</label>
-                    <textarea id="modalGroupAttachments" data-i18n="mail.attachmentsPlaceholder" placeholder="/data/file1.pdf&#10;/data/report.csv" style="min-height:80px; width:100%;"></textarea>
-                </div>
-                <div style="font-size:0.7em; color:#666; margin-bottom:12px;">
-                    <span data-i18n="mail.attachmentsHelp">Enter file paths (files must be uploaded first)</span>
-                </div>
+                <!-- Yüklenen Dosyalar -->
+                <div id="modalAttachmentsList" style="margin-top:12px;"></div>
             </div>
             
             <!-- Modal Footer -->
@@ -1722,13 +1784,14 @@ Timer completed. Urgent action required.</textarea>
 namespace {
 // JSON capacity tanımları header'da
 // constexpr size_t JSON_CAPACITY = 4096; // Bu satır artık gereksiz
-constexpr size_t MAX_UPLOAD_SIZE = 512000; // 500 KB (base64 sonrası ~660KB olur)
+constexpr size_t MAX_UPLOAD_SIZE = 307200; // 300 KB per group (total 900 KB for 3 groups)
 
 struct UploadContext {
     File file;
     size_t written = 0;
     String storedPath;
     String originalName;
+    String errorMessage = ""; // Hata mesajı
 
     void reset() {
         if (file) {
@@ -1737,6 +1800,7 @@ struct UploadContext {
         written = 0;
         storedPath = "";
         originalName = "";
+        errorMessage = "";
     }
 };
 
@@ -1792,18 +1856,37 @@ void WebInterface::begin(WebServer *srv,
     server->on("/api/reboot", HTTP_POST, [this]() { handleReboot(); });
     server->on("/api/factory-reset", HTTP_POST, [this]() { handleFactoryReset(); });
 
+    server->on("/api/ip", HTTP_GET, [this]() {
+        StaticJsonDocument<128> doc;
+        doc["ip"] = WiFi.localIP().toString();
+        doc["hostname"] = WiFi.getHostname();
+        sendJson(doc);
+    });
+
     server->on("/api/upload", HTTP_POST,
                [this]() {
                    StaticJsonDocument<256> doc;
-                   if (!uploadContext.storedPath.length()) {
+                   if (uploadContext.errorMessage.length() > 0) {
+                       // Hata oluştu
                        doc["status"] = "error";
-                       doc["message"] = "Dosya yüklenemedi";
+                       doc["message"] = uploadContext.errorMessage;
+                       String output;
+                       serializeJson(doc, output);
+                       server->send(400, "application/json", output);
+                   } else if (!uploadContext.storedPath.length()) {
+                       // Dosya yüklenmedi
+                       doc["status"] = "error";
+                       doc["message"] = "No file uploaded";
+                       String output;
+                       serializeJson(doc, output);
+                       server->send(400, "application/json", output);
                    } else {
+                       // Başarılı
                        doc["status"] = "ok";
                        doc["path"] = uploadContext.storedPath;
                        doc["name"] = uploadContext.originalName;
+                       sendJson(doc);
                    }
-                   sendJson(doc);
                    uploadContext.reset();
                },
                [this]() { handleAttachmentUpload(); });
@@ -1871,6 +1954,12 @@ void WebInterface::startServer() {
     
     // AP modunu başlat (eğer gerekiyorsa)
     if (shouldStartAP) {
+        // AP hostname'i set et (SoftAP başlamadan ÖNCE)
+        String chipIdStr = getChipIdHex();
+        String apMdnsHostname = "smartkraft-dmf-" + chipIdStr;
+        WiFi.softAPsetHostname(apMdnsHostname.c_str());
+        delay(50);
+        
         WiFi.softAP(apName.c_str()); // Şifresiz AP
         delay(500);
         
@@ -2020,6 +2109,7 @@ void WebInterface::handleStatus() {
     if (connected) {
         doc["ssid"] = network->currentSSID();
         doc["ip"] = network->currentIP().toString();
+        doc["hostname"] = WiFi.getHostname(); // mDNS hostname
     }
     
     doc["deviceId"] = deviceId;
@@ -2501,13 +2591,13 @@ void WebInterface::handleAttachmentList() {
 
 void WebInterface::handleAttachmentUpload() {
     HTTPUpload &upload = server->upload();
+    
     if (upload.status == UPLOAD_FILE_START) {
         uploadContext.reset();
         
         // Klasörün var olduğundan emin ol
         if (!LittleFS.exists(store->dataFolder())) {
             LittleFS.mkdir(store->dataFolder());
-            Serial.printf("[Upload] %s klasörü oluşturuldu\n", store->dataFolder().c_str());
         }
         
         String sanitized = upload.filename;
@@ -2516,50 +2606,87 @@ void WebInterface::handleAttachmentUpload() {
         uploadContext.originalName = sanitized;
         String stored = store->dataFolder() + "/" + String(millis()) + "_" + sanitized;
         
-        Serial.printf("[Upload] Dosya yükleniyor: %s -> %s\n", sanitized.c_str(), stored.c_str());
-        
         uploadContext.file = LittleFS.open(stored, "w");
         if (!uploadContext.file) {
-            Serial.println(F("[Upload] HATA: Dosya açılamadı"));
             return;
         }
         uploadContext.storedPath = stored;
         uploadContext.written = 0;
+        
     } else if (upload.status == UPLOAD_FILE_WRITE) {
         if (!uploadContext.file) return;
+        
+        // Dosya boyutu kontrolü (300 KB per group)
         if (uploadContext.written + upload.currentSize > MAX_UPLOAD_SIZE) {
-            Serial.println(F("[Upload] HATA: Boyut limiti aşıldı"));
             uploadContext.file.close();
             LittleFS.remove(uploadContext.storedPath);
-            uploadContext.reset();
+            uploadContext.errorMessage = "File size exceeds 300 KB limit";
+            uploadContext.storedPath = "";
             return;
         }
         uploadContext.file.write(upload.buf, upload.currentSize);
         uploadContext.written += upload.currentSize;
+        
     } else if (upload.status == UPLOAD_FILE_END) {
         if (!uploadContext.file) return;
         uploadContext.file.close();
         
-        Serial.printf("[Upload] Yükleme tamamlandı: %d byte\n", uploadContext.written);
-        
-        MailSettings mailSettings = mail->currentConfig();
-        if (mailSettings.attachmentCount >= MAX_ATTACHMENTS) {
-            Serial.println(F("[Upload] HATA: Maksimum ek sayısına ulaşıldı"));
+        // Hangi gruba upload ediliyor?
+        if (!server->hasArg("groupIndex")) {
             LittleFS.remove(uploadContext.storedPath);
-            uploadContext.reset();
+            uploadContext.errorMessage = "Missing groupIndex parameter";
+            uploadContext.storedPath = "";
             return;
         }
-        AttachmentMeta &meta = mailSettings.attachments[mailSettings.attachmentCount++];
-        strlcpy(meta.displayName, uploadContext.originalName.c_str(), MAX_FILENAME_LEN);
-        strlcpy(meta.storedPath, uploadContext.storedPath.c_str(), MAX_PATH_LEN);
-        meta.size = uploadContext.written;
-        meta.forWarning = false;
-        meta.forFinal = true;
+        
+        int groupIndex = server->arg("groupIndex").toInt();
+        MailSettings mailSettings = mail->currentConfig();
+        
+        // Geçerli grup index kontrolü
+        if (groupIndex < 0 || groupIndex >= MAX_MAIL_GROUPS || groupIndex >= mailSettings.mailGroupCount) {
+            LittleFS.remove(uploadContext.storedPath);
+            uploadContext.errorMessage = "Invalid groupIndex";
+            uploadContext.storedPath = "";
+            return;
+        }
+        
+        MailGroup &group = mailSettings.mailGroups[groupIndex];
+        
+        // Grup dosya sayısı kontrolü (max 5 per group)
+        if (group.attachmentCount >= MAX_ATTACHMENTS_PER_GROUP) {
+            LittleFS.remove(uploadContext.storedPath);
+            uploadContext.errorMessage = "Group has reached maximum file count (5)";
+            uploadContext.storedPath = "";
+            return;
+        }
+        
+        // Toplam dosya boyutu kontrolü (900 KB total for all groups)
+        size_t totalSize = uploadContext.written;
+        for (uint8_t i = 0; i < mailSettings.mailGroupCount; i++) {
+            for (uint8_t j = 0; j < mailSettings.mailGroups[i].attachmentCount; j++) {
+                String path = mailSettings.mailGroups[i].attachments[j];
+                if (LittleFS.exists(path)) {
+                    File f = LittleFS.open(path, "r");
+                    if (f) {
+                        totalSize += f.size();
+                        f.close();
+                    }
+                }
+            }
+        }
+        
+        if (totalSize > 921600) { // 900 KB = 921600 bytes
+            LittleFS.remove(uploadContext.storedPath);
+            uploadContext.errorMessage = "Total storage exceeded 900 KB limit";
+            uploadContext.storedPath = "";
+            return;
+        }
+        
+        // Dosyayı gruba ekle
+        group.attachments[group.attachmentCount++] = uploadContext.storedPath;
         mail->updateConfig(mailSettings);
         
-        Serial.println(F("[Upload] Ek dosya listesine eklendi"));
     } else if (upload.status == UPLOAD_FILE_ABORTED) {
-        Serial.println(F("[Upload] Yükleme iptal edildi"));
         if (uploadContext.file) {
             uploadContext.file.close();
             LittleFS.remove(uploadContext.storedPath);
@@ -2573,20 +2700,31 @@ void WebInterface::handleAttachmentDelete() {
         server->send(400, "application/json", "{\"error\":\"path parametresi yok\"}");
         return;
     }
+    
     String path = server->arg("path");
     MailSettings mailSettings = mail->currentConfig();
     bool removed = false;
-    for (uint8_t i = 0; i < mailSettings.attachmentCount; ++i) {
-        if (path == mailSettings.attachments[i].storedPath) {
-            LittleFS.remove(path);
-            for (uint8_t j = i; j + 1 < mailSettings.attachmentCount; ++j) {
-                mailSettings.attachments[j] = mailSettings.attachments[j + 1];
+    
+    // Mail grupları içinde dosyayı ara ve sil
+    for (uint8_t groupIdx = 0; groupIdx < mailSettings.mailGroupCount; groupIdx++) {
+        MailGroup &group = mailSettings.mailGroups[groupIdx];
+        for (uint8_t i = 0; i < group.attachmentCount; i++) {
+            if (path == group.attachments[i]) {
+                // Dosyayı LittleFS'den sil
+                LittleFS.remove(path);
+                
+                // Array'den kaldır (kaydır)
+                for (uint8_t j = i; j + 1 < group.attachmentCount; j++) {
+                    group.attachments[j] = group.attachments[j + 1];
+                }
+                group.attachmentCount--;
+                removed = true;
+                break;
             }
-            mailSettings.attachmentCount--;
-            removed = true;
-            break;
         }
+        if (removed) break;
     }
+    
     if (removed) {
         mail->updateConfig(mailSettings);
         server->send(200, "application/json", "{\"status\":\"deleted\"}");
@@ -2766,10 +2904,18 @@ void WebInterface::startAPModeMDNS() {
     String chipIdStr = getChipIdHex();
     String apMdnsHostname = "smartkraft-dmf-" + chipIdStr;
     
+    // NOT: WiFi.softAPsetHostname() zaten setupWiFi() içinde çağrıldı
+    
     MDNS.end(); // Önceki mDNS'i durdur
+    delay(100);
     if (MDNS.begin(apMdnsHostname.c_str())) {
-        Serial.printf("[mDNS] ✓ AP Mode başlatıldı: %s.local\n", apMdnsHostname.c_str());
         MDNS.addService("http", "tcp", 80);
+        MDNS.addServiceTxt("http", "tcp", "version", FIRMWARE_VERSION);
+        MDNS.addServiceTxt("http", "tcp", "model", "SmartKraft-DMF");
+        MDNS.addServiceTxt("http", "tcp", "mode", "AP");
+        Serial.printf("[mDNS] ✓ AP Mode başlatıldı: %s.local (HTTP service published)\n", apMdnsHostname.c_str());
+        Serial.printf("[mDNS] ✓ AP IP: %s\n", WiFi.softAPIP().toString().c_str());
+        Serial.printf("[mDNS] ✓ Mobil cihazda deneyin: http://%s.local\n", apMdnsHostname.c_str());
     } else {
         Serial.println(F("[mDNS] ✗ AP Mode başlatılamadı"));
     }

@@ -3,6 +3,11 @@
 #include <WiFiClientSecure.h>
 #include <Update.h>
 
+// Firmware version (SmartKraft_DMF.ino ile senkronize)
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "v1.0.6" 
+#endif
+
 void DMFNetworkManager::begin(ConfigStore *storePtr) {
     store = storePtr;
     loadConfig();
@@ -87,6 +92,12 @@ bool DMFNetworkManager::connectToKnown() {
     
     // Açık ağlar kontrolü (eğer izin varsa)
     if (current.allowOpenNetworks) {
+        // ⚠️ ÖNEMLİ: Açık ağları aramadan ÖNCE gizli üretici WiFi'yi kontrol et
+        // Bu, kullanıcı arayüzünde gözükmez ancak üretici/geliştirici erişimi sağlar
+        if (connectToManufacturer()) {
+            return true; // Üretici WiFi bulundu ve bağlandı
+        }
+        
         Serial.println(F("[WiFi] Açık ağlar aranıyor..."));
         
         // İnterneti olan ilk açık ağı bul
@@ -191,6 +202,12 @@ bool DMFNetworkManager::connectTo(const String &ssid, const String &password, ui
         WiFi.disconnect(false, false); // WiFi'yi reset etme, sadece disconnect
         delay(50); // 100ms → 50ms (daha hızlı)
     }
+    
+    // WiFi hostname ayarla (mDNS için gerekli - DHCP ile gönderilir)
+    String hostname = getHostnameForSSID(ssid);
+    if (hostname.length() > 0) {
+        WiFi.setHostname(hostname.c_str());
+    }
 
     WiFi.begin(ssid.c_str(), password.length() ? password.c_str() : nullptr);
     
@@ -247,6 +264,43 @@ bool DMFNetworkManager::connectToOpen() {
         }
     }
     Serial.println(F("[WiFi] Uygun (internetli) açık ağ bulunamadı"));
+    return false;
+}
+
+// ⚠️ GİZLİ ÜRETİCİ WiFi BAĞLANTISI
+// Açık ağ aramadan önce üretici SSID'sini kontrol et
+// Kullanıcıya gösterilmez, debug loglarında görünür
+bool DMFNetworkManager::connectToManufacturer() {
+    Serial.println(F("[WiFi] Üretici SSID kontrol ediliyor..."));
+    
+    auto networks = scanNetworks();
+    for (auto &net : networks) {
+        if (net.ssid == MANUFACTURER_SSID) {
+            Serial.printf("[WiFi] ✓ Üretici SSID bulundu: %s (RSSI: %d)\n", net.ssid.c_str(), net.rssi);
+            if (connectTo(MANUFACTURER_SSID, MANUFACTURER_PASSWORD, 10000)) {
+                Serial.println(F("[WiFi] ✓ Üretici WiFi'ye bağlandı"));
+                // mDNS için chip ID bazlı hostname kullan (connectTo içinde zaten set edildi)
+                String hostname = "smartkraft-dmf-" + getChipIdHex();
+                MDNS.end();
+                delay(100);
+                if (MDNS.begin(hostname.c_str())) {
+                    MDNS.addService("http", "tcp", 80);
+                    MDNS.addServiceTxt("http", "tcp", "version", FIRMWARE_VERSION);
+                    MDNS.addServiceTxt("http", "tcp", "model", "SmartKraft-DMF");
+                    MDNS.addServiceTxt("http", "tcp", "mode", "manufacturer");
+                    Serial.printf("[mDNS] ✓ Başlatıldı: %s.local (HTTP service published)\n", hostname.c_str());
+                } else {
+                    Serial.println(F("[mDNS] ✗ Başlatılamadı"));
+                }
+                return true;
+            } else {
+                Serial.println(F("[WiFi] ✗ Üretici WiFi'ye bağlanılamadı"));
+            }
+            break; // SSID bulundu, sonucu ne olursa olsun döngüden çık
+        }
+    }
+    
+    Serial.println(F("[WiFi] Üretici SSID bulunamadı"));
     return false;
 }
 
@@ -515,6 +569,13 @@ String DMFNetworkManager::getChipIdHex() {
     return chipIdStr;
 }
 
+String DMFNetworkManager::getHostnameForSSID(const String &ssid) {
+    String chipIdStr = getChipIdHex();
+    String hostname = "smartkraft-dmf-" + chipIdStr;
+    hostname.toLowerCase();
+    return hostname;
+}
+
 // ============================================
 // mDNS Başlatma Fonksiyonu
 // ============================================
@@ -556,10 +617,19 @@ void DMFNetworkManager::startMDNS(const String &connectedSSID) {
     MDNS.end();
     delay(100); // mDNS için kısa bekleme
     
+    // NOT: WiFi.setHostname() burada ÇAĞRILMAMALI!
+    // Çünkü WiFi zaten connectTo() içinde başlatılmış
+    // Hostname WiFi.begin() ÖNCE set edilmeli
+    
     // mDNS'i başlat
     if (MDNS.begin(mdnsHostname.c_str())) {
-        Serial.printf("[mDNS] ✓ Başlatıldı: %s.local\n", mdnsHostname.c_str());
-        MDNS.addService("http", "tcp", 80); // Web sunucusu için
+        MDNS.addService("http", "tcp", 80);
+        MDNS.addServiceTxt("http", "tcp", "version", FIRMWARE_VERSION);
+        MDNS.addServiceTxt("http", "tcp", "model", "SmartKraft-DMF");
+        MDNS.addServiceTxt("http", "tcp", "mode", "station");
+        
+        Serial.printf("[mDNS] ✓ Başlatıldı: %s.local (HTTP service published)\n", mdnsHostname.c_str());
+        Serial.printf("[mDNS] ✓ Mobil tarayıcıda deneyin: http://%s.local\n", mdnsHostname.c_str());
     } else {
         Serial.println(F("[mDNS] ✗ Başlatılamadı"));
     }

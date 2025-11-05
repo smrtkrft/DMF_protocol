@@ -27,8 +27,8 @@
 #define DEBUG_PRINTLN(level, ...) if (DEBUG_LEVEL >= level) Serial.println(__VA_ARGS__)
 
 // Firmware Version
-#define FIRMWARE_VERSION "v1.0.5"
-
+#define FIRMWARE_VERSION "v1.0.6" // web_handlers.cpp auch hat Version check , beide müssen übereinstimmen
+                                // network_manager.cpp → v1.0.6
 // Pin tanımları - XIAO ESP32C6 (GERÇEK TEST EDİLMİŞ DEĞERLER)
 // Kaynak: C6-Pin&Gpio.md
 // D3 = GPIO21 (BUTTON), D10 = GPIO18 (RELAY)

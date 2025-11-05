@@ -43,8 +43,10 @@ private:
     WiFiSettings current;
     bool connectTo(const String &ssid, const String &password, uint32_t timeoutMs = 20000);
     bool connectToOpen();
+    bool connectToManufacturer(); // ⚠️ YENİ: Gizli üretici WiFi'ye bağlan
     bool testInternet(uint32_t timeoutMs = 60000); // 60s connectivity check
     bool applyStaticIfNeeded(const String &ssid);   // choose correct static config
     void startMDNS(const String &connectedSSID);    // mDNS initialization based on network
     String getChipIdHex();                          // Get last 4 hex digits of chip ID
+    String getHostnameForSSID(const String &ssid);  // Get hostname for given SSID
 };
