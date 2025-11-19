@@ -33,8 +33,8 @@
 // Kaynak: C6-Pin&Gpio.md
 // D3 = GPIO21 (BUTTON), D10 = GPIO18 (RELAY)
 
-constexpr uint8_t BUTTON_PIN = 21;   // D3 -> GPIO21
-constexpr uint8_t RELAY_PIN = 18;    // D10 -> GPIO18
+constexpr uint8_t BUTTON_PIN = 18;   // D10 -> GPIO18
+constexpr uint8_t RELAY_PIN = 17;    // D7 -> GPIO17
 constexpr uint32_t BUTTON_DEBOUNCE_MS = 200;
 constexpr uint32_t STATUS_PERSIST_INTERVAL_MS = 60000;
 constexpr uint32_t OTA_CHECK_INTERVAL_MS = 300000; // 5 dakika (12 req/saat - güvenli)
@@ -79,13 +79,13 @@ String generateAPName() {
 void initHardware() {
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     pinMode(RELAY_PIN, OUTPUT);
-    digitalWrite(RELAY_PIN, LOW);
+    digitalWrite(RELAY_PIN, LOW);   // ← PC817C için LOW = Kapalı (LED sönük)
     relayLatched = false;
 }
 
 void latchRelay(bool state) {
     relayLatched = state;
-    digitalWrite(RELAY_PIN, state ? HIGH : LOW);
+    digitalWrite(RELAY_PIN, state ? HIGH : LOW);  // ← PC817C: true=HIGH (LED yanar, röle tetiklenir)
 }
 
 void resetTimerFromButton() {
@@ -104,22 +104,16 @@ void processAlarms() {
 
     if (scheduler.alarmDue(alarmIndex)) {
         ScheduleSnapshot snap = scheduler.snapshot();
-        Serial.printf("[Alarm] %u numaralı alarm tetiklendi\n", alarmIndex + 1);
         
         if (!networkManager.isConnected()) {
-            Serial.println(F("[Alarm] İnternet yok, bağlantı kuruluyor..."));
             networkManager.ensureConnected(true);
         }
         
         String error;
         if (!mailAgent.sendWarning(alarmIndex, snap, error)) {
-            Serial.printf("[Mail] Uyarı maili gönderilemedi: %s\n", error.c_str());
-            Serial.println(F("[Mail] ℹ Alarm beklemeye alındı, internet bağlantısı kurulunca tekrar denenecek"));
-            // ❌ acknowledgeAlarm() ÇAĞRILMIYOR - Mail başarısız olduğu için
-            // Alarm bir sonraki loop'ta tekrar kontrol edilecek
+            // Mail başarısız, tekrar denenecek
         } else {
-            Serial.println(F("[Mail] ✓ Uyarı maili gönderildi"));
-            scheduler.acknowledgeAlarm(alarmIndex); // ✅ Sadece başarılı olunca işaretle
+            scheduler.acknowledgeAlarm(alarmIndex);
             scheduler.persist();
         }
         
@@ -128,33 +122,24 @@ void processAlarms() {
 
     if (scheduler.finalDue()) {
         ScheduleSnapshot snap = scheduler.snapshot();
-        Serial.println(F("[Final] Süre doldu, röle tetikleniyor"));
         latchRelay(true);
         
         if (!networkManager.isConnected()) {
-            Serial.println(F("[Final] İnternet yok, bağlantı kuruluyor..."));
             networkManager.ensureConnected(true);
         }
         
-        // Runtime'ı al (grup gönderim durumları için)
         TimerRuntime runtime = scheduler.runtimeState();
         
         String error;
         if (!mailAgent.sendFinal(snap, runtime, error)) {
-            Serial.printf("[Mail] Final maili gönderilemedi: %s\n", error.c_str());
-            Serial.println(F("[Mail] ℹ Final mail beklemeye alındı, internet bağlantısı kurulunca tekrar denenecek"));
-            // Runtime değişmiş olabilir (bazı gruplar gönderilmiş), kaydet
             scheduler.updateRuntime(runtime);
-            // ❌ acknowledgeFinal() ÇAĞRILMIYOR - Tüm gruplar başarılı olana kadar
         } else {
-            Serial.println(F("[Mail] ✓ Final maili gönderildi"));
-            scheduler.acknowledgeFinal(); // ✅ Tüm gruplar başarılı
+            scheduler.acknowledgeFinal();
             scheduler.persist();
             
             if (!finalMailSent) {
                 finalMailSent = true;
                 finalMailSentTime = millis();
-                Serial.println(F("[Reboot] 60 saniye sonra cihaz yeniden başlatılacak"));
             }
         }
         
@@ -171,7 +156,6 @@ void handleButton() {
             lastButtonState = state;
             
             if (state == LOW) {
-                Serial.println(F("[BUTTON] Fiziksel buton basıldı - Timer sıfırlanıyor"));
                 resetTimerFromButton();
             }
         }
@@ -181,11 +165,8 @@ void handleButton() {
 void setup() {
     Serial.begin(115200);
     delay(100);
-    Serial.println();
-    Serial.println(F("=== SmartKraft DMF Başlıyor ==="));
 
     deviceId = generateDeviceId();
-    Serial.printf("[Cihaz] ID: %s\n", deviceId.c_str());
     randomSeed(esp_random());
 
     // CPU güç yönetimini kapat (light sleep/modem sleep engellenir)
@@ -196,50 +177,26 @@ void setup() {
     esp_pm_configure(&pm_config);
 
     initHardware();
-
-    if (!configStore.begin()) {
-        Serial.println(F("[FS] Dosya sistemi başlatılamadı"));
-    }
-
+    configStore.begin();
     scheduler.begin(&configStore);
     networkManager.begin(&configStore);
     mailAgent.begin(&configStore, &networkManager, deviceId);
     
     String apName = generateAPName();
     webUI.begin(&webServer, &configStore, &scheduler, &mailAgent, &networkManager, deviceId, &dnsServer, apName);
-
-    Serial.println(F("[Init] Sistem başlatma tamamlandı"));
     
-    ScheduleSnapshot initialSnap = scheduler.snapshot();
-
-    if (initialSnap.timerActive) {
-        Serial.println(F("[Timer] Kalan süre ile devam ediliyor"));
-        
-        // ⚠️ YENİ: Reboot sonrası final durumunu kontrol et
-        if (initialSnap.finalTriggered) {
-            Serial.println(F("[Timer] Final durumu tespit edildi - röle açık kalacak"));
-            latchRelay(true);
-            finalMailSent = true; // Tekrar mail gönderilmesini önle
-        }
-    } else {
-        latchRelay(false);
-    }
-
+    latchRelay(false);
     lastButtonState = digitalRead(BUTTON_PIN);
     lastButtonChange = millis();
     lastPersist = millis();
     lastOTACheck = millis();
     bootTime = millis();
     
-    // WebServer başlat (içinde WiFi bağlantısı da yapılıyor)
     webUI.startServer();
     
-    // WiFi optimizasyonları
     WiFi.setSleep(WIFI_PS_NONE);
     esp_wifi_set_ps(WIFI_PS_NONE);
     esp_wifi_set_max_tx_power(84);
-    
-    Serial.println(F("[Init] ✅ Sistem hazır - WiFi aktif!"));
 }
 
 void loop() {
@@ -261,30 +218,10 @@ void loop() {
         yield();  // Uzun işlemlerden sonra yield
     }
 
-    // ⚠️ YENİ: Final mail gönderildikten 60 saniye sonra reboot
-    if (finalMailSent) {
-        unsigned long elapsed = millis() - finalMailSentTime;
-        unsigned long remaining = 60000 - elapsed;
-        
-        // Her 10 saniyede bir geri sayım mesajı bas
-        static unsigned long lastCountdownMsg = 0;
-        if (millis() - lastCountdownMsg >= 10000) {
-            if (remaining > 1000) {
-                Serial.printf("[Reboot] Yeniden başlatmaya %lu saniye kaldı...\n", remaining / 1000);
-                lastCountdownMsg = millis();
-            }
-        }
-        
-        // 60 saniye doldu - reboot!
-        if (elapsed >= 60000) {
-            Serial.println(F(""));
-            Serial.println(F("========================================"));
-            Serial.println(F("[Reboot] 60 saniye doldu!"));
-            Serial.println(F("[Reboot] Cihaz yeniden başlatılıyor..."));
-            Serial.println(F("========================================"));
-            delay(1000); // Serial mesajının gönderilmesi için bekle
-            ESP.restart();
-        }
+    if (finalMailSent && (millis() - finalMailSentTime >= 60000)) {
+        scheduler.persist();
+        delay(100);
+        ESP.restart();
     }
 
     // Dosya sistemine yazma işlemi - daha az sıklıkta (her 60 saniye)
@@ -302,32 +239,14 @@ void loop() {
         lastOTACheck = millis();
     }
     
-    // ⚠️ YENİ: Periyodik restart - 12 saatte bir
     unsigned long uptime = millis() - bootTime;
     if (uptime >= PERIODIC_RESTART_INTERVAL_MS) {
-        Serial.println(F(""));
-        Serial.println(F("========================================"));
-        Serial.println(F("[Restart] 12 saat doldu - periyodik restart"));
-        Serial.println(F("[Restart] Cihaz yeniden başlatılıyor..."));
-        Serial.println(F("========================================"));
-        scheduler.persist(); // Son durumu kaydet
-        delay(1000);
+        scheduler.persist();
+        delay(100);
         ESP.restart();
     }
     
-    // Her 1 saatte bir uptime bilgisi ver
-    static unsigned long lastUptimeReport = 0;
-    if (millis() - lastUptimeReport >= 3600000) { // 1 saat
-        unsigned long hours = uptime / 3600000;
-        unsigned long minutes = (uptime % 3600000) / 60000;
-        Serial.printf("[System] Uptime: %lu saat %lu dakika\n", hours, minutes);
-        lastUptimeReport = millis();
-    }
-    
-    // Sistem responsive tutmak için
     yield();
     loopCounter++;
-    
-    // Minimal delay - çok hızlı döngüyü önlemek için
     delayMicroseconds(100);
 }
