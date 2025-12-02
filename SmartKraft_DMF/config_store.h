@@ -3,6 +3,151 @@
 #include <Arduino.h>
 #include <LittleFS.h>
 #include <ArduinoJson.h>
+#include <esp_wifi.h>
+
+// ============================================
+// GLOBAL SABİTLER (Tek noktada tanımlanır)
+// ============================================
+#define FIRMWARE_VERSION "v1.1.0"
+
+// ============================================
+// BENZERSİZ CİHAZ ID SİSTEMİ (NVS + LittleFS)
+// ============================================
+// Çinli klon ESP32 modülleri aynı MAC adresiyle gelebilir.
+// Bu nedenle hibrit bir ID sistemi kullanıyoruz:
+//
+// SAKLAMA HİYERARŞİSİ (en kalıcıdan en az kalıcıya):
+// 1. NVS (Non-Volatile Storage) - Flash silinse bile korunur!
+// 2. LittleFS dosyası - Yedek olarak
+//
+// ID OLUŞTURMA:
+// - Önce NVS'te ara, sonra LittleFS'te ara
+// - Hiçbirinde yoksa: MAC + TRNG + micros() ile oluştur
+// - Her iki yere de kaydet
+
+#include <Preferences.h>  // NVS için
+
+constexpr const char* DEVICE_ID_FILE = "/device_id.txt";
+constexpr const char* NVS_NAMESPACE = "smartkraft";
+constexpr const char* NVS_DEVICE_ID_KEY = "device_id";
+
+// Benzersiz cihaz ID'sini al veya oluştur (12 karakter hex)
+// Bu ID, flash tamamen silinse bile NVS'te korunur!
+inline String getOrCreateDeviceId() {
+    Preferences prefs;
+    String deviceId = "";
+    
+    // 1. Önce NVS'te ara (en kalıcı)
+    if (prefs.begin(NVS_NAMESPACE, true)) { // readonly mode
+        deviceId = prefs.getString(NVS_DEVICE_ID_KEY, "");
+        prefs.end();
+        
+        if (deviceId.length() == 12) {
+            Serial.printf("[ID] NVS'ten yüklendi: %s\n", deviceId.c_str());
+            return deviceId;
+        }
+    }
+    
+    // 2. NVS'te yoksa LittleFS'te ara (yedek)
+    if (LittleFS.exists(DEVICE_ID_FILE)) {
+        File file = LittleFS.open(DEVICE_ID_FILE, "r");
+        if (file) {
+            deviceId = file.readStringUntil('\n');
+            file.close();
+            deviceId.trim();
+            
+            if (deviceId.length() == 12) {
+                // LittleFS'te bulundu, NVS'e de kaydet (senkronizasyon)
+                if (prefs.begin(NVS_NAMESPACE, false)) {
+                    prefs.putString(NVS_DEVICE_ID_KEY, deviceId);
+                    prefs.end();
+                    Serial.printf("[ID] LittleFS'ten yüklendi ve NVS'e kaydedildi: %s\n", deviceId.c_str());
+                }
+                return deviceId;
+            }
+        }
+    }
+    
+    // 3. Hiçbir yerde yok - Yeni benzersiz ID oluştur
+    // Kaynaklar:
+    // - MAC adresi (aynı olsa bile katkı sağlar)
+    // - esp_random() (True Random Number Generator - TRNG)
+    // - micros() (boot zamanı - her cihazda farklı)
+    
+    uint64_t mac = ESP.getEfuseMac();
+    uint32_t random1 = esp_random();
+    uint32_t random2 = esp_random();
+    uint32_t bootTime = micros();
+    
+    // Tüm kaynakları XOR ile karıştır
+    uint32_t part1 = (uint32_t)(mac & 0xFFFFFFFF) ^ random1 ^ bootTime;
+    uint32_t part2 = (uint32_t)(mac >> 32) ^ random2 ^ (bootTime >> 8);
+    
+    // Ekstra karıştırma (basit hash - Murmur3 benzeri)
+    part1 = ((part1 >> 16) ^ part1) * 0x45d9f3b;
+    part1 = ((part1 >> 16) ^ part1) * 0x45d9f3b;
+    part1 = (part1 >> 16) ^ part1;
+    
+    part2 = ((part2 >> 16) ^ part2) * 0x45d9f3b;
+    part2 = ((part2 >> 16) ^ part2) * 0x45d9f3b;
+    part2 = (part2 >> 16) ^ part2;
+    
+    // 12 karakterlik hex ID oluştur
+    char newId[13];
+    snprintf(newId, sizeof(newId), "%04X%08X", 
+             (uint16_t)(part2 & 0xFFFF), part1);
+    deviceId = String(newId);
+    
+    // 4. Her iki yere de kaydet
+    
+    // NVS'e kaydet (EN KALICI)
+    if (prefs.begin(NVS_NAMESPACE, false)) {
+        prefs.putString(NVS_DEVICE_ID_KEY, deviceId);
+        prefs.end();
+        Serial.printf("[ID] ✓ NVS'e kaydedildi: %s\n", deviceId.c_str());
+    } else {
+        Serial.println(F("[ID] ⚠ NVS'e kaydedilemedi!"));
+    }
+    
+    // LittleFS'e de kaydet (yedek)
+    File file = LittleFS.open(DEVICE_ID_FILE, "w");
+    if (file) {
+        file.println(deviceId);
+        file.close();
+        Serial.println(F("[ID] ✓ LittleFS'e yedeklendi"));
+    }
+    
+    Serial.printf("[ID] ✓ Yeni benzersiz ID oluşturuldu: %s\n", deviceId.c_str());
+    return deviceId;
+}
+
+// Eski fonksiyon - geriye uyumluluk için (sadece MAC döndürür)
+inline String getChipIdHex() {
+    uint64_t mac = ESP.getEfuseMac();
+    char chipIdStr[13];
+    snprintf(chipIdStr, sizeof(chipIdStr), "%04X%08X", 
+             (uint16_t)(mac >> 32), 
+             (uint32_t)mac);
+    return String(chipIdStr);
+}
+
+// ============================================
+// ORTAK YARDIMCI FONKSİYONLAR
+// ============================================
+
+// WiFi güç tasarrufunu kapat (tüm yerlerde kullanılacak tek fonksiyon)
+// Not: esp_wifi_set_ps() kullanıyoruz çünkü WiFi.h bağımlılığını önler
+inline void disableWiFiPowerSave() {
+    esp_wifi_set_ps(WIFI_PS_NONE);
+}
+
+// Mail/mesaj template değişkenlerini değiştir
+inline void replaceTemplateVars(String &text, const String &deviceId, const String &timestamp, const String &remaining) {
+    text.replace("{DEVICE_ID}", deviceId);
+    text.replace("{TIMESTAMP}", timestamp);
+    text.replace("{REMAINING}", remaining);
+    text.replace("%REMAINING%", remaining);  // Geriye uyumluluk
+}
 
 struct TimerSettings {
     enum Unit : uint8_t { MINUTES = 0, HOURS = 1, DAYS = 2 };

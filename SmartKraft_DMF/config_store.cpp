@@ -1,36 +1,28 @@
 #include "config_store.h"
 
 namespace {
-constexpr size_t JSON_CAPACITY = 4096;
+// JSON kapasitesi - Mail grupları ve eklentiler için artırıldı
+// 3 grup × 10 alıcı × 50 byte + diğer alanlar = ~6KB gerekli
+constexpr size_t JSON_CAPACITY = 8192;
 }
 
 bool ConfigStore::begin() {
-    // Önce normal mount dene
     if (LittleFS.begin(false)) {
-        if (!ensureDataFolder()) {
-            Serial.println(F("[FS] UYARI: Data klasörü oluşturulamadı, ancak devam ediliyor"));
-        }
+        ensureDataFolder();
         return true;
     }
 
-    // Mount başarısız - format dene
-    Serial.println(F("[FS] LittleFS mount başarısız, format denenecek"));
     if (LittleFS.begin(true)) {
-        Serial.println(F("[FS] LittleFS yeniden biçimlendirildi"));
-        if (!ensureDataFolder()) {
-            Serial.println(F("[FS] UYARI: Data klasörü oluşturulamadı"));
-        }
+        ensureDataFolder();
         return true;
     }
 
-    // Format da başarısız - kritik hata ama sistem çalışmaya devam etsin
-    Serial.println(F("[FS] KRITIK: LittleFS başlatılamadı - ayarlar RAM'de tutulacak"));
-    return false; // Sistem çalışmaya devam eder ama ayarlar kaydedilmez
+    return false;
 }
 
 TimerSettings ConfigStore::loadTimerSettings() const {
     TimerSettings settings;
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    JsonDocument doc;
     if (readJson(TIMER_FILE, doc)) {
         uint8_t unitValue = doc["unit"].as<uint8_t>();
         
@@ -53,7 +45,7 @@ TimerSettings ConfigStore::loadTimerSettings() const {
 }
 
 void ConfigStore::saveTimerSettings(const TimerSettings &settings) {
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    JsonDocument doc;
     
     // 0=MINUTES, 1=HOURS, 2=DAYS
     if (settings.unit == TimerSettings::MINUTES) {
@@ -72,7 +64,7 @@ void ConfigStore::saveTimerSettings(const TimerSettings &settings) {
 
 MailSettings ConfigStore::loadMailSettings() const {
     MailSettings mail;
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    JsonDocument doc;
     if (readJson(MAIL_FILE, doc)) {
         mail.smtpServer = doc["smtpServer"].as<String>();
         mail.smtpPort = doc["smtpPort"] | 465;
@@ -80,7 +72,7 @@ MailSettings ConfigStore::loadMailSettings() const {
         mail.password = doc["password"].as<String>();
 
         // DEPRECATED: Eski recipients listesi (geriye uyumluluk)
-        if (doc.containsKey("recipients") && doc["recipients"].is<JsonArray>()) {
+        if (doc["recipients"].is<JsonArray>()) {
             auto array = doc["recipients"].as<JsonArray>();
             mail.recipientCount = min((uint8_t)array.size(), (uint8_t)MAX_RECIPIENTS);
             for (uint8_t i = 0; i < mail.recipientCount; ++i) {
@@ -93,7 +85,7 @@ MailSettings ConfigStore::loadMailSettings() const {
         mail.warning.getUrl = doc["warning"]["getUrl"].as<String>();
 
         // Final content (eski API uyumluluğu için)
-        if (doc.containsKey("final")) {
+        if (doc["final"].is<JsonObject>()) {
             mail.finalContent.subject = doc["final"]["subject"].as<String>();
             mail.finalContent.body = doc["final"]["body"].as<String>();
             mail.finalContent.getUrl = doc["final"]["getUrl"].as<String>();
@@ -105,7 +97,7 @@ MailSettings ConfigStore::loadMailSettings() const {
         }
 
         // ⚠️ YENİ: Mail Grupları yükle
-        if (doc.containsKey("mailGroups") && doc["mailGroups"].is<JsonArray>()) {
+        if (doc["mailGroups"].is<JsonArray>()) {
             auto groupsArray = doc["mailGroups"].as<JsonArray>();
             mail.mailGroupCount = min((uint8_t)groupsArray.size(), (uint8_t)MAX_MAIL_GROUPS);
             
@@ -120,7 +112,7 @@ MailSettings ConfigStore::loadMailSettings() const {
                 group.getUrl = groupObj["getUrl"].as<String>();
                 
                 // Grup alıcılarını yükle
-                if (groupObj.containsKey("recipients") && groupObj["recipients"].is<JsonArray>()) {
+                if (groupObj["recipients"].is<JsonArray>()) {
                     auto recArray = groupObj["recipients"].as<JsonArray>();
                     group.recipientCount = min((uint8_t)recArray.size(), (uint8_t)MAX_RECIPIENTS_PER_GROUP);
                     for (uint8_t i = 0; i < group.recipientCount; ++i) {
@@ -129,7 +121,7 @@ MailSettings ConfigStore::loadMailSettings() const {
                 }
                 
                 // Grup dosyalarını yükle (sadece dosya yolları)
-                if (groupObj.containsKey("attachments") && groupObj["attachments"].is<JsonArray>()) {
+                if (groupObj["attachments"].is<JsonArray>()) {
                     auto attArray = groupObj["attachments"].as<JsonArray>();
                     group.attachmentCount = min((uint8_t)attArray.size(), (uint8_t)MAX_ATTACHMENTS_PER_GROUP);
                     for (uint8_t i = 0; i < group.attachmentCount; ++i) {
@@ -139,7 +131,7 @@ MailSettings ConfigStore::loadMailSettings() const {
             }
         } else {
             // ⚠️ GERİYE UYUMLULUK: Eski "final" yapısını ilk gruba taşı
-            if (doc.containsKey("final")) {
+            if (doc["final"].is<JsonObject>()) {
                 mail.mailGroupCount = 1;
                 MailGroup &group = mail.mailGroups[0];
                 group.name = "Varsayılan Grup";
@@ -163,7 +155,7 @@ MailSettings ConfigStore::loadMailSettings() const {
         }
 
         // DEPRECATED: Eski attachments sistemi (sadece geriye uyumluluk için yükle)
-        if (doc.containsKey("attachments") && doc["attachments"].is<JsonArray>()) {
+        if (doc["attachments"].is<JsonArray>()) {
             auto array = doc["attachments"].as<JsonArray>();
             mail.attachmentCount = min((uint8_t)array.size(), (uint8_t)MAX_ATTACHMENTS);
             for (uint8_t i = 0; i < mail.attachmentCount; ++i) {
@@ -180,34 +172,34 @@ MailSettings ConfigStore::loadMailSettings() const {
 }
 
 void ConfigStore::saveMailSettings(const MailSettings &mail) {
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    JsonDocument doc;
     doc["smtpServer"] = mail.smtpServer;
     doc["smtpPort"] = mail.smtpPort;
     doc["username"] = mail.username;
     doc["password"] = mail.password;
 
     // DEPRECATED: Eski recipients (geriye uyumluluk)
-    auto recipients = doc.createNestedArray("recipients");
+    JsonArray recipients = doc["recipients"].to<JsonArray>();
     for (uint8_t i = 0; i < mail.recipientCount; ++i) {
         recipients.add(mail.recipients[i]);
     }
 
-    auto warning = doc.createNestedObject("warning");
+    JsonObject warning = doc["warning"].to<JsonObject>();
     warning["subject"] = mail.warning.subject;
     warning["body"] = mail.warning.body;
     warning["getUrl"] = mail.warning.getUrl;
 
     // Final content (eski API uyumluluğu için)
-    auto final = doc.createNestedObject("final");
-    final["subject"] = mail.finalContent.subject;
-    final["body"] = mail.finalContent.body;
-    final["getUrl"] = mail.finalContent.getUrl;
+    JsonObject finalObj = doc["final"].to<JsonObject>();
+    finalObj["subject"] = mail.finalContent.subject;
+    finalObj["body"] = mail.finalContent.body;
+    finalObj["getUrl"] = mail.finalContent.getUrl;
 
     // ⚠️ YENİ: Mail Gruplarını kaydet
-    auto mailGroups = doc.createNestedArray("mailGroups");
+    JsonArray mailGroups = doc["mailGroups"].to<JsonArray>();
     for (uint8_t g = 0; g < mail.mailGroupCount; ++g) {
         const MailGroup &group = mail.mailGroups[g];
-        auto groupObj = mailGroups.createNestedObject();
+        JsonObject groupObj = mailGroups.add<JsonObject>();
         
         groupObj["name"] = group.name;
         groupObj["enabled"] = group.enabled;
@@ -216,22 +208,22 @@ void ConfigStore::saveMailSettings(const MailSettings &mail) {
         groupObj["getUrl"] = group.getUrl;
         
         // Grup alıcılarını kaydet
-        auto recArray = groupObj.createNestedArray("recipients");
+        JsonArray recArray = groupObj["recipients"].to<JsonArray>();
         for (uint8_t i = 0; i < group.recipientCount; ++i) {
             recArray.add(group.recipients[i]);
         }
         
         // Grup dosyalarını kaydet (sadece dosya yolları)
-        auto attArray = groupObj.createNestedArray("attachments");
+        JsonArray attArray = groupObj["attachments"].to<JsonArray>();
         for (uint8_t i = 0; i < group.attachmentCount; ++i) {
             attArray.add(group.attachments[i]);
         }
     }
 
     // DEPRECATED: Eski attachments (geriye uyumluluk)
-    auto attachments = doc.createNestedArray("attachments");
+    JsonArray attachments = doc["attachments"].to<JsonArray>();
     for (uint8_t i = 0; i < mail.attachmentCount; ++i) {
-        auto entry = attachments.createNestedObject();
+        JsonObject entry = attachments.add<JsonObject>();
         entry["displayName"] = mail.attachments[i].displayName;
         entry["storedPath"] = mail.attachments[i].storedPath;
         entry["size"] = mail.attachments[i].size;
@@ -244,7 +236,7 @@ void ConfigStore::saveMailSettings(const MailSettings &mail) {
 
 WiFiSettings ConfigStore::loadWiFiSettings() const {
     WiFiSettings wifi;
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    JsonDocument doc;
     if (readJson(WIFI_FILE, doc)) {
         wifi.primarySSID = doc["primarySSID"].as<String>();
         wifi.primaryPassword = doc["primaryPassword"].as<String>();
@@ -253,7 +245,7 @@ WiFiSettings ConfigStore::loadWiFiSettings() const {
         wifi.allowOpenNetworks = doc["allowOpenNetworks"].as<bool>();
         
         // apModeEnabled: Eğer JSON'da yoksa varsayılan true, varsa kaydedilen değeri kullan
-        if (doc.containsKey("apModeEnabled")) {
+        if (doc["apModeEnabled"].is<bool>()) {
             wifi.apModeEnabled = doc["apModeEnabled"].as<bool>();
         } else {
             wifi.apModeEnabled = true; // İlk kurulum için varsayılan
@@ -277,7 +269,7 @@ WiFiSettings ConfigStore::loadWiFiSettings() const {
 }
 
 void ConfigStore::saveWiFiSettings(const WiFiSettings &wifi) {
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    JsonDocument doc;
     doc["primarySSID"] = wifi.primarySSID;
     doc["primaryPassword"] = wifi.primaryPassword;
     doc["secondarySSID"] = wifi.secondarySSID;
@@ -304,7 +296,7 @@ void ConfigStore::saveWiFiSettings(const WiFiSettings &wifi) {
 // ⚠️ YENİ: API Ayarlarını Yükle
 APISettings ConfigStore::loadAPISettings() const {
     APISettings settings;
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     if (readJson(API_FILE, doc)) {
         settings.enabled = doc["enabled"] | true;
         settings.endpoint = doc["endpoint"] | "trigger";
@@ -316,7 +308,7 @@ APISettings ConfigStore::loadAPISettings() const {
 
 // ⚠️ YENİ: API Ayarlarını Kaydet
 void ConfigStore::saveAPISettings(const APISettings &settings) {
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     doc["enabled"] = settings.enabled;
     doc["endpoint"] = settings.endpoint;
     doc["requireToken"] = settings.requireToken;
@@ -326,7 +318,7 @@ void ConfigStore::saveAPISettings(const APISettings &settings) {
 
 TimerRuntime ConfigStore::loadRuntime() const {
     TimerRuntime runtime;
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    JsonDocument doc;
     if (readJson(RUNTIME_FILE, doc)) {
         runtime.timerActive = doc["timerActive"].as<bool>();
         runtime.paused = doc["paused"].as<bool>();
@@ -336,7 +328,7 @@ TimerRuntime ConfigStore::loadRuntime() const {
         runtime.finalTriggered = doc["finalTriggered"].as<bool>();
         
         // Grup gönderim durumlarını yükle
-        if (doc.containsKey("finalGroupsSent")) {
+        if (doc["finalGroupsSent"].is<JsonArray>()) {
             JsonArray groupsSent = doc["finalGroupsSent"];
             for (uint8_t i = 0; i < MAX_MAIL_GROUPS && i < groupsSent.size(); ++i) {
                 runtime.finalGroupsSent[i] = groupsSent[i].as<bool>();
@@ -347,7 +339,7 @@ TimerRuntime ConfigStore::loadRuntime() const {
 }
 
 void ConfigStore::saveRuntime(const TimerRuntime &runtime) {
-    StaticJsonDocument<JSON_CAPACITY> doc;
+    JsonDocument doc;
     doc["timerActive"] = runtime.timerActive;
     doc["paused"] = runtime.paused;
     doc["deadlineMillis"] = runtime.deadlineMillis;
@@ -356,7 +348,7 @@ void ConfigStore::saveRuntime(const TimerRuntime &runtime) {
     doc["finalTriggered"] = runtime.finalTriggered;
     
     // Grup gönderim durumlarını kaydet
-    JsonArray groupsSent = doc.createNestedArray("finalGroupsSent");
+    JsonArray groupsSent = doc["finalGroupsSent"].to<JsonArray>();
     for (uint8_t i = 0; i < MAX_MAIL_GROUPS; ++i) {
         groupsSent.add(runtime.finalGroupsSent[i]);
     }
@@ -388,42 +380,20 @@ bool ConfigStore::ensureDataFolder() {
 }
 
 void ConfigStore::writeJson(const char *path, const JsonDocument &doc) {
-    // LittleFS mount kontrolü
-    if (!LittleFS.begin(false)) {
-        Serial.printf("[FS] UYARI: %s yazılamadı - LittleFS erişilemiyor\n", path);
-        return;
-    }
-    
-    // Data klasörünü kontrol et ve oluştur
-    if (!ensureDataFolder()) {
-        Serial.printf("[FS] UYARI: %s yazılamadı - data klasörü oluşturulamadı\n", path);
-        return;
-    }
+    if (!LittleFS.begin(false)) return;
+    if (!ensureDataFolder()) return;
     
     File file = LittleFS.open(path, "w");
-    if (!file) {
-        Serial.printf("[FS] UYARI: %s yazılamadı - dosya açılamadı\n", path);
-        return;
-    }
+    if (!file) return;
     
-    size_t written = serializeJson(doc, file);
+    serializeJson(doc, file);
     file.close();
-    
-    // Sadece hata durumunda log
-    if (written == 0) {
-        Serial.printf("[FS] UYARI: %s boş yazıldı\n", path);
-    }
 }
 
 bool ConfigStore::readJson(const char *path, JsonDocument &doc) const {
-    if (!LittleFS.exists(path)) {
-        return false;
-    }
+    if (!LittleFS.exists(path)) return false;
     File file = LittleFS.open(path, "r");
-    if (!file) {
-        Serial.printf("[FS] %s açılamadı\n", path);
-        return false;
-    }
+    if (!file) return false;
     DeserializationError err = deserializeJson(doc, file);
     file.close();
     return !err;

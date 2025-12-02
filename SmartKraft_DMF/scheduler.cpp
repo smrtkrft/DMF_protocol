@@ -124,10 +124,14 @@ void CountdownScheduler::reset() {
 }
 
 void CountdownScheduler::tick() {
+    // Sadece aktif ve duraklamamış timer'lar için çalış
     if (!runtime.timerActive || runtime.paused) {
-        return; // Not running or paused, don't tick
+        return;
     }
+    
     updateRemaining();
+    
+    // Süre dolduğunda final durumuna geç
     if (runtime.remainingSeconds == 0) {
         runtime.timerActive = false;
         runtime.paused = false;
@@ -258,12 +262,17 @@ uint32_t CountdownScheduler::unitStepSeconds() const {
 }
 
 void CountdownScheduler::updateRemaining() {
-    if (!runtime.timerActive) {
+    if (!runtime.timerActive || runtime.paused) {
         return;
     }
     uint64_t now = millis();
+    
+    // ⚠️ millis() overflow koruması (49.7 günde taşar)
+    // Eğer deadline geçmişse VEYA now > deadline + 1 saat (wrap-around tespiti)
     if (runtime.deadlineMillis > now) {
         runtime.remainingSeconds = (runtime.deadlineMillis - now) / 1000ULL;
+    } else if (now > runtime.deadlineMillis + 3600000ULL) {
+        runtime.deadlineMillis = now + (uint64_t)runtime.remainingSeconds * 1000ULL;
     } else {
         runtime.remainingSeconds = 0;
     }

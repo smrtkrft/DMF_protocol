@@ -28,6 +28,11 @@ public:
     void loop();
 
     void broadcastStatus();
+    
+    // ===== WEB SERVER HEALTH CHECK =====
+    bool isHealthy() const;               // Server sağlıklı mı?
+    uint32_t getLastRequestTime() const;  // Son istek zamanı
+    void resetHealthCounter();            // Health counter'ı sıfırla
 
 private:
     WebServer *server = nullptr;
@@ -40,6 +45,9 @@ private:
     String apName;
 
     unsigned long lastStatusPush = 0;
+    unsigned long lastRequestTime = 0;       // Son başarılı istek zamanı
+    uint32_t requestCounter = 0;             // Toplam istek sayısı
+    static constexpr uint32_t HEALTH_TIMEOUT_MS = 300000; // 5 dakika istek yoksa unhealthy
     
     // Performance optimizations - cache frequently accessed data
     unsigned long lastStatusCache = 0;
@@ -81,6 +89,6 @@ private:
     void sendJson(const JsonDocument &doc);
     
     // Helper functions
-    String getChipIdHex();  // Get last 4 hex digits of chip ID
+    // getChipIdHex() artık config_store.h'da global
     void startAPModeMDNS(); // Start mDNS for AP mode
 };

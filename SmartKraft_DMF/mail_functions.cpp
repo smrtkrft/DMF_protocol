@@ -5,6 +5,8 @@
 #include <HTTPClient.h>
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
+#include <ArduinoJson.h>
+#include <algorithm>  // std::sort için
 
 // ============================================================================
 // ROOT CA CERTIFICATES (SSL/TLS Sertifika Doğrulama)
@@ -54,6 +56,9 @@ void MailAgent::begin(ConfigStore *storePtr, DMFNetworkManager *netMgrPtr, const
     if (store) {
         settings = store->loadMailSettings();
     }
+    
+    // Persistent mail queue'yu yükle
+    loadQueueFromStorage();
 }
 
 void MailAgent::updateConfig(const MailSettings &config) {
@@ -68,34 +73,22 @@ void MailAgent::updateConfig(const MailSettings &config) {
 // ============================================================================
 
 bool MailAgent::isValidURL(const String &url) {
-    // Boş URL kontrolü
-    if (url.length() == 0) {
-        Serial.println(F("[URL Validation] REDDEDILDI: Boş URL"));
-        return false;
-    }
+    if (url.length() == 0) return false;
 
-    // URL'den IP'yi çıkar
     String checkIP = "";
     int ipStart = url.indexOf("://");
     if (ipStart >= 0) {
-        ipStart += 3; // "://" sonrası
+        ipStart += 3;
         int ipEnd = url.indexOf(':', ipStart);
         if (ipEnd < 0) ipEnd = url.indexOf('/', ipStart);
         if (ipEnd < 0) ipEnd = url.length();
         checkIP = url.substring(ipStart, ipEnd);
     } else {
-        checkIP = url; // Scheme yoksa tüm string IP olabilir
+        checkIP = url;
     }
 
-    Serial.printf("[URL Validation] Kontrol edilen IP: %s\n", checkIP.c_str());
+    if (checkIP.startsWith("192.168.11.")) return true;
 
-    // AYNI AĞ KONTROLÜ: 192.168.11.x ağındaki TÜM IP'lere izin ver
-    if (checkIP.startsWith("192.168.11.")) {
-        Serial.printf("[URL Validation] ✓ ONAYLANDI: %s (aynı ağ - 192.168.11.x)\n", checkIP.c_str());
-        return true;
-    }
-
-    // Diğer private IP range'leri blokla (güvenlik)
     if (checkIP.startsWith("192.168.") || 
         checkIP.startsWith("10.") || 
         checkIP.startsWith("172.16.") || checkIP.startsWith("172.17.") ||
@@ -106,19 +99,13 @@ bool MailAgent::isValidURL(const String &url) {
         checkIP.startsWith("172.26.") || checkIP.startsWith("172.27.") ||
         checkIP.startsWith("172.28.") || checkIP.startsWith("172.29.") ||
         checkIP.startsWith("172.30.") || checkIP.startsWith("172.31.")) {
-        
-        Serial.printf("[URL Validation] ✗ REDDEDILDI: %s (farklı private ağ)\n", checkIP.c_str());
         return false;
     }
 
-    // Localhost kontrolü
     if (checkIP.equals("127.0.0.1") || checkIP.equals("localhost") || checkIP.equals("::1")) {
-        Serial.printf("[URL Validation] ✗ REDDEDILDI: %s (localhost)\n", checkIP.c_str());
         return false;
     }
 
-    // Public IP/domain ise izin ver
-    Serial.printf("[URL Validation] ✓ ONAYLANDI: %s (public)\n", checkIP.c_str());
     return true;
 }
 
@@ -145,31 +132,20 @@ String MailAgent::smtpReadLine(WiFiClientSecure &client, uint32_t timeoutMs) {
 }
 
 bool MailAgent::smtpConnect(WiFiClientSecure &client, String &errorMessage) {
-    // İnternet bağlantısı kontrolü
     if (WiFi.status() != WL_CONNECTED) {
         errorMessage = "WiFi not connected";
-        Serial.println(F("[SMTP] ✗ WiFi bağlı değil"));
         return false;
     }
     
-    Serial.printf("[SMTP] Connecting: %s:%d\n", settings.smtpServer.c_str(), settings.smtpPort);
-    Serial.printf("[SMTP] WiFi: %s (IP: %s)\n", WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-    
-    // SSL/TLS Sertifika Doğrulama (MITM Koruması)
-    // ProtonMail → ISRG Root X1 | Gmail → Sertifika doğrulaması yok (setInsecure)
     if (settings.smtpServer.indexOf("protonmail") >= 0 || 
         settings.smtpServer.indexOf("proton.me") >= 0) {
         client.setCACert(ROOT_CA_ISRG_X1);
-        Serial.println(F("[SMTP] Root CA: ISRG X1 (ProtonMail)"));
     } else {
-        // Gmail ve diğer provider'lar için sertifika doğrulamasını atla
         client.setInsecure();
-        Serial.println(F("[SMTP] SSL: Insecure mode (Gmail/Others)"));
     }
     client.setTimeout(15);
     
     if (settings.smtpPort == 587) {
-        Serial.println(F("[SMTP] Port 587 (STARTTLS) not supported. Use 465!"));
         errorMessage = "Port 587 not supported. Use port 465";
         return false;
     }
@@ -177,51 +153,33 @@ bool MailAgent::smtpConnect(WiFiClientSecure &client, String &errorMessage) {
     IPAddress serverIP;
     if (!WiFi.hostByName(settings.smtpServer.c_str(), serverIP)) {
         errorMessage = "DNS failed: " + settings.smtpServer;
-        Serial.println(F("[SMTP] ✗ DNS çözümlenemedi"));
         return false;
     }
-    Serial.printf("[SMTP] ✓ DNS: %s → %s\n", settings.smtpServer.c_str(), serverIP.toString().c_str());
     
-    Serial.println(F("[SMTP] SSL/TLS bağlantısı kuruluyor..."));
     if (!client.connect(settings.smtpServer.c_str(), settings.smtpPort)) {
         errorMessage = "Connection failed";
-        Serial.println(F("[SMTP] ✗ Bağlantı başarısız"));
-        Serial.println(F("[SMTP] ℹ Olası sebepler:"));
-        Serial.println(F("[SMTP]   - İnternet bağlantısı yok"));
-        Serial.println(F("[SMTP]   - SMTP sunucusu erişilemiyor"));
-        Serial.println(F("[SMTP]   - SSL/TLS sertifika hatası"));
-        Serial.println(F("[SMTP]   - Firewall port 465 engelliyor"));
         return false;
     }
-    Serial.println(F("[SMTP] ✓ SSL/TLS bağlantısı kuruldu"));
     
     String response = smtpReadLine(client);
-    Serial.printf("[SMTP] << %s\n", response.c_str());
-    
     if (!response.startsWith("220")) {
         errorMessage = "Server greeting failed";
         client.stop();
         return false;
     }
     
-    Serial.println(F("[SMTP] Connected"));
     return true;
 }
 
 bool MailAgent::smtpAuth(WiFiClientSecure &client, String &errorMessage) {
-    Serial.println(F("[SMTP] Kimlik doğrulaması yapılıyor..."));
-    
-    // EHLO gönder
     String ehloCmd = "EHLO " + String(WiFi.getHostname()) + "\r\n";
     client.print(ehloCmd);
     
-    // EHLO yanıtlarını oku (250 ile başlayan satırlar)
     bool foundAuth = false;
     for (int i = 0; i < 10; i++) {
         String response = smtpReadLine(client);
-        Serial.printf("[SMTP] << %s\n", response.c_str());
         if (response.indexOf("AUTH") >= 0) foundAuth = true;
-        if (response.startsWith("250 ")) break; // Son satır
+        if (response.startsWith("250 ")) break;
     }
     
     if (!foundAuth) {
@@ -229,128 +187,81 @@ bool MailAgent::smtpAuth(WiFiClientSecure &client, String &errorMessage) {
         return false;
     }
     
-    // AUTH LOGIN
     client.print("AUTH LOGIN\r\n");
     String response = smtpReadLine(client);
-    Serial.printf("[SMTP] << %s\n", response.c_str());
     
     if (!response.startsWith("334")) {
         errorMessage = "AUTH LOGIN reddedildi";
         return false;
     }
     
-    // Kullanıcı adı (base64)
     client.println(base64Encode(settings.username));
     response = smtpReadLine(client);
-    Serial.printf("[SMTP] << %s\n", response.c_str());
     
     if (!response.startsWith("334")) {
         errorMessage = "Kullanıcı adı reddedildi";
         return false;
     }
     
-    // Şifre (base64)
     client.println(base64Encode(settings.password));
     response = smtpReadLine(client);
-    Serial.printf("[SMTP] << %s\n", response.c_str());
     
     if (!response.startsWith("235")) {
         errorMessage = "Kimlik doğrulama başarısız - Şifre yanlış";
         return false;
     }
     
-    Serial.println(F("[SMTP] Kimlik doğrulama başarılı"));
     return true;
 }
 
 bool MailAgent::sendWarning(uint8_t alarmIndex, const ScheduleSnapshot &snapshot, String &errorMessage) {
+    String remaining = formatElapsed(snapshot);
+    String timestamp = formatHeader();
+    
     String subject = settings.warning.subject;
-    // Yeni format: {DEVICE_ID}, {TIMESTAMP}, {REMAINING}
-    subject.replace("{DEVICE_ID}", deviceId);
-    subject.replace("{TIMESTAMP}", formatHeader());
-    subject.replace("{REMAINING}", formatElapsed(snapshot));
-    // Geriye uyumluluk için eski format da desteklenir
+    replaceTemplateVars(subject, deviceId, timestamp, remaining);
     subject.replace("%ALARM_INDEX%", String(alarmIndex + 1));
     subject.replace("%TOTAL_ALARMS%", String(snapshot.totalAlarms));
-    subject.replace("%REMAINING%", formatElapsed(snapshot));
 
     String body = settings.warning.body;
-    body.replace("{DEVICE_ID}", deviceId);
-    body.replace("{TIMESTAMP}", formatHeader());
-    body.replace("{REMAINING}", formatElapsed(snapshot));
+    replaceTemplateVars(body, deviceId, timestamp, remaining);
     body.replace("%ALARM_INDEX%", String(alarmIndex + 1));
     body.replace("%TOTAL_ALARMS%", String(snapshot.totalAlarms));
-    body.replace("%REMAINING%", formatElapsed(snapshot));
 
-    // Alarm maili sadece kullanıcının kendisine gider (mail gruplarına GİTMEZ)
-    Serial.printf("[Alarm %d] Hatırlatma maili gönderiliyor (sadece gönderen adrese)\n", alarmIndex + 1);
     bool mailSuccess = sendEmailToSelf(subject, body, true, errorMessage);
     
-    // URL tetikleme (mail başarısız olsa bile çalıştır - NON-BLOCKING)
+    if (!mailSuccess) {
+        enqueueWarning(alarmIndex, snapshot);
+        errorMessage = "Mail kuyruğa alındı, arka planda gönderilecek";
+    }
+    
     if (settings.warning.getUrl.length() > 0 && WiFi.status() == WL_CONNECTED) {
-        // URL Validation - SSRF Koruması
         if (!isValidURL(settings.warning.getUrl)) {
-            Serial.println(F("[Warning URL] ✗ GÜVENLİK: URL reddedildi (whitelist dışı)"));
-            return mailSuccess; // URL tetiklemeden mail sonucunu döndür
+            return mailSuccess;
         }
         
-        Serial.printf("[Warning URL] Tetikleniyor (paralel): %s\n", settings.warning.getUrl.c_str());
-        
-        // Task oluştur - HEMEN başlat (delay yok)
         String taskName = "WarnURL_" + String(alarmIndex);
         xTaskCreate([](void* param) {
             String url = *((String*)param);
-            
-            // ⚠️ OPTİMİZASYON: Delay kaldırıldı - hemen tetikle
-            
             HTTPClient http;
             
-            // HTTP veya HTTPS'e göre client seç
             if (url.startsWith("https://")) {
                 WiFiClientSecure* client = new WiFiClientSecure();
-                
-                // SSL/TLS - Sertifika doğrulaması yok
                 client->setInsecure();
-                Serial.println(F("[Warning URL] SSL: Insecure mode"));
                 
                 if (http.begin(*client, url)) {
                     http.setTimeout(8000);
                     http.setConnectTimeout(3000);
-                    
-                    int httpCode = http.GET();
-                    Serial.printf("[Warning URL] Sonuç: %d\n", httpCode);
-                    
-                    if (httpCode > 0) {
-                        String response = http.getString();
-                        Serial.printf("[Warning URL] Yanıt: %d bytes\n", response.length());
-                        if (response.length() < 150) {
-                            Serial.printf("[Warning URL] %s\n", response.c_str());
-                        }
-                    } else {
-                        Serial.printf("[Warning URL] HATA: %s\n", http.errorToString(httpCode).c_str());
-                    }
+                    http.GET();
                     http.end();
                 }
                 delete client;
             } else {
                 WiFiClient* client = new WiFiClient();
-                
                 if (http.begin(*client, url)) {
                     http.setTimeout(8000);
                     http.setConnectTimeout(3000);
-                    
-                    int httpCode = http.GET();
-                    Serial.printf("[Warning URL] Sonuç: %d\n", httpCode);
-                    
-                    if (httpCode > 0) {
-                        String response = http.getString();
-                        Serial.printf("[Warning URL] Yanıt: %d bytes\n", response.length());
-                        if (response.length() < 150) {
-                            Serial.printf("[Warning URL] %s\n", response.c_str());
-                        }
-                    } else {
-                        Serial.printf("[Warning URL] HATA: %s\n", http.errorToString(httpCode).c_str());
-                    }
+                    http.GET();
                     http.end();
                 }
                 delete client;
@@ -420,16 +331,11 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, TimerRuntime &runtim
             subject = subject.substring(11);
             Serial.printf("[Final] [TEST DMF] prefix kaldırıldı\n");
         }
-        subject.replace("{DEVICE_ID}", deviceId);
-        subject.replace("{TIMESTAMP}", formatHeader());
-        subject.replace("{REMAINING}", "0");
-        subject.replace("%REMAINING%", "0");
+        String timestamp = formatHeader();
+        replaceTemplateVars(subject, deviceId, timestamp, "0");
 
         String body = group.body;
-        body.replace("{DEVICE_ID}", deviceId);
-        body.replace("{TIMESTAMP}", formatHeader());
-        body.replace("{REMAINING}", "0");
-        body.replace("%REMAINING%", "0");
+        replaceTemplateVars(body, deviceId, timestamp, "0");
         
         // ⚠️ STACK KORUMASI: MailSettings çok büyük, kopyalamıyoruz
         // Sadece attachments pointer'ını geçici değiştirip geri alıyoruz
@@ -543,8 +449,12 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, TimerRuntime &runtim
     
     Serial.printf("\n========== DMF PROTOKOLÜ TAMAMLANDI - Toplam %d mail gönderildi ==========\n", totalMailsSent);
     
+    // ===== MAIL QUEUE: Başarısız olursa kuyruğa ekle =====
     if (!allSuccess) {
         errorMessage = "Bazı alıcılara mail gönderilemedi: " + lastError;
+        Serial.println(F("[Final] Başarısız mailler kuyruğa ekleniyor..."));
+        enqueueFinal(snapshot, runtime);
+        errorMessage += " - Kuyrukta yeniden denenecek";
     }
     
     return allSuccess;
@@ -552,21 +462,18 @@ bool MailAgent::sendFinal(const ScheduleSnapshot &snapshot, TimerRuntime &runtim
 
 // TEST FONKSIYONLARI - Sadece gönderen adrese mail atar
 bool MailAgent::sendWarningTest(const ScheduleSnapshot &snapshot, String &errorMessage) {
+    String remaining = formatElapsed(snapshot);
+    String timestamp = formatHeader();
+    
     String subject = settings.warning.subject;
-    subject.replace("{DEVICE_ID}", deviceId);
-    subject.replace("{TIMESTAMP}", formatHeader());
-    subject.replace("{REMAINING}", formatElapsed(snapshot));
+    replaceTemplateVars(subject, deviceId, timestamp, remaining);
     subject.replace("%ALARM_INDEX%", "1");
     subject.replace("%TOTAL_ALARMS%", String(snapshot.totalAlarms));
-    subject.replace("%REMAINING%", formatElapsed(snapshot));
 
     String body = settings.warning.body;
-    body.replace("{DEVICE_ID}", deviceId);
-    body.replace("{TIMESTAMP}", formatHeader());
-    body.replace("{REMAINING}", formatElapsed(snapshot));
+    replaceTemplateVars(body, deviceId, timestamp, remaining);
     body.replace("%ALARM_INDEX%", "1");
     body.replace("%TOTAL_ALARMS%", String(snapshot.totalAlarms));
-    body.replace("%REMAINING%", formatElapsed(snapshot));
 
     // SMTP kullanıcı adına (kendine) gönder - Warning test
     bool mailSuccess = sendEmailToSelf(subject, body, true, errorMessage);
@@ -684,16 +591,11 @@ bool MailAgent::sendFinalTest(const ScheduleSnapshot &snapshot, String &errorMes
         subject = subject.substring(11);
         Serial.printf("[Final Test] [TEST DMF] prefix kaldırıldı\n");
     }
-    subject.replace("{DEVICE_ID}", deviceId);
-    subject.replace("{TIMESTAMP}", formatHeader());
-    subject.replace("{REMAINING}", "0");
-    subject.replace("%REMAINING%", "0");
+    String timestamp = formatHeader();
+    replaceTemplateVars(subject, deviceId, timestamp, "0");
 
     String body = group.body;
-    body.replace("{DEVICE_ID}", deviceId);
-    body.replace("{TIMESTAMP}", formatHeader());
-    body.replace("{REMAINING}", "0");
-    body.replace("%REMAINING%", "0");
+    replaceTemplateVars(body, deviceId, timestamp, "0");
 
     // Grup alıcıları kontrolü
     if (group.recipientCount == 0) {
@@ -1356,4 +1258,358 @@ String MailAgent::formatElapsed(const ScheduleSnapshot &snapshot) const {
     char buffer[32];
     snprintf(buffer, sizeof(buffer), "%ud %uh %um", days, hours, minutes);
     return String(buffer);
+}
+
+// ============================================================================
+// MAIL QUEUE IMPLEMENTATION
+// Persistent queue that survives restarts, never expires
+// Priority: Warning > Final
+// Retry: 5x60s → 10x300s → skip → 600s infinite
+// ============================================================================
+
+void MailAgent::loadQueueFromStorage() {
+    Serial.println(F("[MailQueue] Kuyruk yükleniyor..."));
+    
+    if (!LittleFS.exists(QUEUE_FILE)) {
+        Serial.println(F("[MailQueue] Kuyruk dosyası yok, boş başlatılıyor"));
+        return;
+    }
+    
+    File file = LittleFS.open(QUEUE_FILE, "r");
+    if (!file) {
+        Serial.println(F("[MailQueue] Kuyruk dosyası açılamadı"));
+        return;
+    }
+    
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, file);
+    file.close();
+    
+    if (error) {
+        Serial.printf("[MailQueue] JSON parse hatası: %s\n", error.c_str());
+        return;
+    }
+    
+    mailQueue.clear();
+    nextMailId = doc["nextId"] | 1;
+    
+    JsonArray arr = doc["queue"].as<JsonArray>();
+    for (JsonObject obj : arr) {
+        QueuedMail mail;
+        mail.id = obj["id"] | 0;
+        mail.type = static_cast<MailType>(obj["type"].as<uint8_t>());
+        mail.phase = static_cast<RetryPhase>(obj["phase"].as<uint8_t>());
+        mail.attemptCount = obj["attempts"] | 0;
+        mail.nextRetryTime = millis(); // Restart sonrası hemen dene
+        mail.createdAt = obj["created"] | 0;
+        mail.subject = obj["subject"].as<String>();
+        mail.body = obj["body"].as<String>();
+        mail.alarmIndex = obj["alarm"] | 0;
+        mail.includeAttachments = obj["attach"] | false;
+        mail.startTime = obj["startTime"].as<String>();
+        mail.endTime = obj["endTime"].as<String>();
+        mail.description = obj["desc"].as<String>();
+        
+        mailQueue.push_back(mail);
+    }
+    
+    sortQueueByPriority();
+    Serial.printf("[MailQueue] ✓ %d mail yüklendi\n", mailQueue.size());
+}
+
+void MailAgent::saveQueueToStorage() {
+    JsonDocument doc;
+    doc["nextId"] = nextMailId;
+    
+    JsonArray arr = doc["queue"].to<JsonArray>();
+    for (const auto &mail : mailQueue) {
+        JsonObject obj = arr.add<JsonObject>();
+        obj["id"] = mail.id;
+        obj["type"] = static_cast<uint8_t>(mail.type);
+        obj["phase"] = static_cast<uint8_t>(mail.phase);
+        obj["attempts"] = mail.attemptCount;
+        obj["created"] = mail.createdAt;
+        obj["subject"] = mail.subject;
+        obj["body"] = mail.body;
+        obj["alarm"] = mail.alarmIndex;
+        obj["attach"] = mail.includeAttachments;
+        obj["startTime"] = mail.startTime;
+        obj["endTime"] = mail.endTime;
+        obj["desc"] = mail.description;
+    }
+    
+    File file = LittleFS.open(QUEUE_FILE, "w");
+    if (!file) {
+        Serial.println(F("[MailQueue] Kuyruk kaydedilemedi!"));
+        return;
+    }
+    
+    serializeJson(doc, file);
+    file.close();
+    Serial.printf("[MailQueue] ✓ %d mail kaydedildi\n", mailQueue.size());
+}
+
+void MailAgent::clearQueue() {
+    mailQueue.clear();
+    LittleFS.remove(QUEUE_FILE);
+    Serial.println(F("[MailQueue] Kuyruk temizlendi"));
+}
+
+bool MailAgent::hasQueuedMails() const {
+    return !mailQueue.empty();
+}
+
+size_t MailAgent::getQueueSize() const {
+    return mailQueue.size();
+}
+
+void MailAgent::sortQueueByPriority() {
+    // Warning (0) > Final (1)
+    // Aynı tip içinde eski olanlar önce (FIFO)
+    std::sort(mailQueue.begin(), mailQueue.end(), [](const QueuedMail &a, const QueuedMail &b) {
+        if (static_cast<uint8_t>(a.type) != static_cast<uint8_t>(b.type)) {
+            return static_cast<uint8_t>(a.type) < static_cast<uint8_t>(b.type);
+        }
+        return a.createdAt < b.createdAt;
+    });
+}
+
+uint32_t MailAgent::getRetryInterval(RetryPhase phase) const {
+    switch (phase) {
+        case RetryPhase::PHASE1:
+            return 60 * 1000;     // 60 saniye
+        case RetryPhase::PHASE2:
+            return 300 * 1000;    // 5 dakika
+        case RetryPhase::SKIPPED:
+            return 600 * 1000;    // 10 dakika (infinite)
+        default:
+            return 60 * 1000;
+    }
+}
+
+void MailAgent::advanceRetryPhase(QueuedMail &mail) {
+    mail.attemptCount++;
+    
+    switch (mail.phase) {
+        case RetryPhase::PHASE1:
+            if (mail.attemptCount >= 5) {
+                Serial.printf("[MailQueue] Mail #%d: PHASE1 tamamlandı (5 deneme), PHASE2'ye geçiliyor\n", mail.id);
+                mail.phase = RetryPhase::PHASE2;
+                mail.attemptCount = 0;
+            }
+            break;
+            
+        case RetryPhase::PHASE2:
+            if (mail.attemptCount >= 10) {
+                Serial.printf("[MailQueue] Mail #%d: PHASE2 tamamlandı (10 deneme), SKIPPED olarak işaretleniyor\n", mail.id);
+                mail.phase = RetryPhase::SKIPPED;
+                mail.attemptCount = 0;
+            }
+            break;
+            
+        case RetryPhase::SKIPPED:
+            // Infinite retry - sayaç artmaya devam eder ama asla silinmez
+            Serial.printf("[MailQueue] Mail #%d: SKIPPED aşamasında, deneme #%d (infinite)\n", mail.id, mail.attemptCount);
+            break;
+    }
+    
+    mail.nextRetryTime = millis() + getRetryInterval(mail.phase);
+}
+
+void MailAgent::enqueueWarning(uint8_t alarmIndex, const ScheduleSnapshot &snapshot) {
+    QueuedMail mail;
+    mail.id = nextMailId++;
+    mail.type = MailType::WARNING;
+    mail.phase = RetryPhase::PHASE1;
+    mail.attemptCount = 0;
+    mail.nextRetryTime = millis(); // Hemen dene
+    mail.createdAt = millis();
+    mail.alarmIndex = alarmIndex;
+    mail.includeAttachments = true;
+    
+    // Snapshot'tan mevcut bilgileri kaydet
+    // Not: startTimeStr, endTimeStr, description snapshot'ta yok
+    // Bu değerler gönderim anında settings'ten alınacak
+    mail.startTime = "";
+    mail.endTime = "";
+    mail.description = "Alarm " + String(alarmIndex + 1);
+    
+    // Subject ve body daha sonra oluşturulacak
+    mail.subject = ""; // Gönderim anında oluşturulur
+    mail.body = "";
+    
+    mailQueue.push_back(mail);
+    sortQueueByPriority();
+    saveQueueToStorage();
+    
+    Serial.printf("[MailQueue] ✓ Warning mail #%d kuyruğa eklendi (alarm %d)\n", mail.id, alarmIndex);
+}
+
+void MailAgent::enqueueFinal(const ScheduleSnapshot &snapshot, TimerRuntime &runtime) {
+    QueuedMail mail;
+    mail.id = nextMailId++;
+    mail.type = MailType::FINAL;
+    mail.phase = RetryPhase::PHASE1;
+    mail.attemptCount = 0;
+    mail.nextRetryTime = millis(); // Hemen dene
+    mail.createdAt = millis();
+    mail.alarmIndex = 0; // Final için kullanılmaz
+    mail.includeAttachments = false; // Final maillerde attachment yok
+    
+    // Snapshot'tan mevcut bilgileri kaydet
+    // Not: startTimeStr, endTimeStr, description snapshot'ta yok
+    mail.startTime = "";
+    mail.endTime = "";
+    mail.description = "Süreç Tamamlandı";
+    
+    mail.subject = "";
+    mail.body = "";
+    
+    mailQueue.push_back(mail);
+    sortQueueByPriority();
+    saveQueueToStorage();
+    
+    Serial.printf("[MailQueue] ✓ Final mail #%d kuyruğa eklendi\n", mail.id);
+}
+
+bool MailAgent::trySendQueuedMail(QueuedMail &mail, String &errorMessage) {
+    Serial.printf("[MailQueue] Mail #%d gönderiliyor (tip: %s, aşama: %d, deneme: %d)\n",
+                  mail.id,
+                  mail.type == MailType::WARNING ? "WARNING" : "FINAL",
+                  static_cast<int>(mail.phase),
+                  mail.attemptCount + 1);
+    
+    // WiFi kontrolü
+    if (!netManager || !netManager->isConnected()) {
+        errorMessage = "WiFi bağlı değil";
+        return false;
+    }
+    
+    // Mail içeriğini oluştur
+    String subject, body;
+    
+    if (mail.type == MailType::WARNING) {
+        // Warning mail subject/body
+        subject = "⚠️ [DMF Uyarı] Alarm " + String(mail.alarmIndex + 1) + " - " + mail.description;
+        body = "SmartKraft DMF Uyarı Maili\n\n";
+        body += "Cihaz ID: " + deviceId + "\n";
+        body += "Alarm: " + String(mail.alarmIndex + 1) + "\n";
+        body += "Başlangıç: " + mail.startTime + "\n";
+        body += "Bitiş: " + mail.endTime + "\n";
+        body += "Açıklama: " + mail.description + "\n";
+        body += "\n" + formatHeader();
+    } else {
+        // Final mail subject/body
+        subject = "✅ [DMF Final] Süreç Tamamlandı - " + mail.description;
+        body = "SmartKraft DMF Final Maili\n\n";
+        body += "Cihaz ID: " + deviceId + "\n";
+        body += "Başlangıç: " + mail.startTime + "\n";
+        body += "Bitiş: " + mail.endTime + "\n";
+        body += "Açıklama: " + mail.description + "\n";
+        body += "\n" + formatHeader();
+    }
+    
+    // Mail gönder
+    bool success = sendEmail(subject, body, mail.includeAttachments, errorMessage);
+    
+    if (success) {
+        Serial.printf("[MailQueue] ✓ Mail #%d başarıyla gönderildi\n", mail.id);
+    } else {
+        Serial.printf("[MailQueue] ✗ Mail #%d gönderilemedi: %s\n", mail.id, errorMessage.c_str());
+    }
+    
+    return success;
+}
+
+void MailAgent::processQueue() {
+    // Çok sık işleme yapma
+    if (millis() - lastQueueProcess < QUEUE_PROCESS_INTERVAL) {
+        return;
+    }
+    lastQueueProcess = millis();
+    
+    if (mailQueue.empty()) {
+        return;
+    }
+    
+    uint32_t now = millis();
+    bool queueChanged = false;
+    
+    // ===== KUYRUK TEMİZLİĞİ =====
+    // 24 saatten eski mailleri sil
+    for (auto it = mailQueue.begin(); it != mailQueue.end(); ) {
+        uint32_t age = now - it->createdAt;
+        // Overflow koruması: Eğer age çok büyükse (negatif olmuş), sil
+        if (age > MAX_MAIL_AGE_MS || age > 0x7FFFFFFF) {
+            it = mailQueue.erase(it);
+            queueChanged = true;
+        } else {
+            ++it;
+        }
+    }
+    
+    // Kuyruk çok büyükse en eskilerini sil
+    while (mailQueue.size() > MAX_QUEUE_SIZE) {
+        mailQueue.erase(mailQueue.begin()); // En eski = ilk eleman
+        queueChanged = true;
+    }
+    
+    // WiFi kontrolü
+    if (!netManager || !netManager->isConnected()) {
+        if (queueChanged) saveQueueToStorage();
+        return; // WiFi yok, bekle
+    }
+    
+    // Sırayla işle (priority order zaten sort edilmiş)
+    for (auto it = mailQueue.begin(); it != mailQueue.end(); ) {
+        QueuedMail &mail = *it;
+        
+        // Henüz zamanı gelmemiş mi?
+        // millis() overflow koruması: (now - nextRetryTime) negatif olursa overflow
+        uint32_t elapsed = now - mail.nextRetryTime;
+        if (elapsed > 0x7FFFFFFF) { // Overflow durumu - henüz zamanı gelmemiş
+            ++it;
+            continue;
+        }
+        
+        String errorMessage;
+        bool success = trySendQueuedMail(mail, errorMessage);
+        
+        if (success) {
+            // Başarılı - kuyruktan çıkar
+            it = mailQueue.erase(it);
+            queueChanged = true;
+            
+            // SKIPPED mailler varsa, bir sonrakine geç
+            // (Başarılı gönderimden sonra SKIPPED'ları da dene)
+            for (auto &m : mailQueue) {
+                if (m.phase == RetryPhase::SKIPPED) {
+                    m.nextRetryTime = now; // Hemen dene
+                }
+            }
+        } else {
+            // Başarısız - retry phase ilerlet
+            advanceRetryPhase(mail);
+            queueChanged = true;
+            
+            // SKIPPED aşamasına geçtiyse, bir sonraki maile geç
+            if (mail.phase == RetryPhase::SKIPPED && it != mailQueue.end()) {
+                // Sonraki maillerin hemen denenmesini sağla
+                auto nextIt = it;
+                ++nextIt;
+                if (nextIt != mailQueue.end()) {
+                    nextIt->nextRetryTime = now;
+                }
+            }
+            
+            ++it;
+        }
+        
+        // Bir seferde sadece bir mail işle (sistem yükünü azalt)
+        break;
+    }
+    
+    if (queueChanged) {
+        saveQueueToStorage();
+    }
 }

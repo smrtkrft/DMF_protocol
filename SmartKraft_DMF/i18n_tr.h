@@ -176,7 +176,7 @@ const char I18N_TR[] PROGMEM = R"rawliteral({
     "apIPAddress": "IP Adresi",
     "apMDNS": "mDNS",
     "apSSID": "Ağ Adı (SSID)",
-    "apSSIDPlaceholder": "SmartKraft_DMF_XXXXXX",
+    "apSSIDPlaceholder": "DMF-XXXXXXXXXXXX",
     "apPassword": "Şifre",
     "apPasswordPlaceholder": "Açık ağ için boş bırakın",
     "apPasswordHelp": "En az 8 karakter veya boş bırakın",
