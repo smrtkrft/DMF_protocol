@@ -34,7 +34,7 @@ constexpr uint32_t OTA_RANDOM_MIN_MS = 60UL * 1000UL;                       // 1
 constexpr uint32_t OTA_STARTUP_MIN_MS = 60UL * 1000UL;                      // 1 dakika (startup minimum)
 constexpr uint32_t OTA_STARTUP_MAX_MS = 5UL * 60UL * 1000UL;                // 5 dakika (startup maximum)
 constexpr uint32_t OTA_HTTP_TIMEOUT_MS = 15000;                             // 15 saniye (API timeout)
-constexpr uint32_t OTA_DOWNLOAD_TIMEOUT_MS = 120000;                        // 2 dakika (firmware indirme)
+constexpr uint16_t OTA_DOWNLOAD_TIMEOUT_MS = 60000;                         // 60 saniye (firmware indirme - HTTPClient max)
 
 // OTA Durum Dosyası
 constexpr const char* OTA_STATE_FILE = "/ota_state.json";
